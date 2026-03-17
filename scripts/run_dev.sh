@@ -15,6 +15,18 @@ err() {
   printf '%s[ERROR]%s %s\n' "$COLOR_RED" "$COLOR_RESET" "$1" >&2
 }
 
+validate_ddl_strategy() {
+  case "$1" in
+    create|create-drop|update|validate|none)
+      ;;
+    *)
+      err "Unsupported DDL strategy: $1"
+      err "Supported strategies: create, create-drop, update, validate, none"
+      exit 1
+      ;;
+  esac
+}
+
 stop_container_on_port() {
   PORT="$1"
 
@@ -44,6 +56,17 @@ ok "Loaded env file: ${ENV_FILE}"
 set -a
 . "${ENV_FILE}"
 set +a
+
+if [ -z "${SPRING_ACTIVE_PROFILES:-}" ]; then
+  APP_PROFILE="${SPRING_PROFILE:-dev}"
+  DDL_STRATEGY="${1:-${DB_DDL_STRATEGY:-create-drop}}"
+  validate_ddl_strategy "${DDL_STRATEGY}"
+  SPRING_ACTIVE_PROFILES="${APP_PROFILE},ddl-${DDL_STRATEGY}"
+fi
+
+export SPRING_ACTIVE_PROFILES
+
+ok "Using Spring profiles: ${SPRING_ACTIVE_PROFILES}"
 
 stop_container_on_port "${APP_PORT}"
 stop_container_on_port "${POSTGRES_PORT}"
