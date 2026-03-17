@@ -59,7 +59,7 @@ set +a
 
 if [ -z "${SPRING_ACTIVE_PROFILES:-}" ]; then
   APP_PROFILE="${SPRING_PROFILE:-dev}"
-  DDL_STRATEGY="${1:-${DB_DDL_STRATEGY:-update}}"
+  DDL_STRATEGY="${1:-${DB_DDL_STRATEGY:-create-drop}}"
   validate_ddl_strategy "${DDL_STRATEGY}"
   SPRING_ACTIVE_PROFILES="${APP_PROFILE},ddl-${DDL_STRATEGY}"
 fi
