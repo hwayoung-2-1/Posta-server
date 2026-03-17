@@ -23,5 +23,5 @@ spring:
       prod-validate: prod,ddl-validate
       prod-none: prod,ddl-none
 jwt:
-  secret: we-are-bssm-project-internship-hwayoung-team1
+  secret: ${JWT_SECRET}
   expiration: 43200000
