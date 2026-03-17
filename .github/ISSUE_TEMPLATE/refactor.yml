@@ -1,0 +1,63 @@
+name: ♻️ Refactor
+description: 코드 구조 개선 및 리팩토링
+title: "[REFACTOR] "
+labels: ["refactor", "backend"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## ♻️ 리팩토링 요청
+        기능 변경 없이 코드 품질 개선을 위한 작업입니다.
+
+  - type: input
+    id: target
+    attributes:
+      label: 📌 대상 영역
+      placeholder: ex) UserService, AuthController
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: ⚠️ 현재 문제
+      placeholder: |
+        - 코드 중복
+        - 가독성 저하
+        - 책임 분리 부족 등
+    validations:
+      required: true
+
+  - type: textarea
+    id: improvement
+    attributes:
+      label: 💡 개선 방향
+      placeholder: |
+        - Service 분리
+        - DTO 구조 개선
+        - 로직 단순화 등
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: 🔥 영향 범위
+      description: 다른 코드에 영향이 있는지
+
+  - type: dropdown
+    id: risk
+    attributes:
+      label: ⚡ 리스크
+      options:
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 📎 추가 정보

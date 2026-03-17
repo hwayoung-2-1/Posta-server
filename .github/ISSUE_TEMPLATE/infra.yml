@@ -1,0 +1,109 @@
+name: ⚙️ Infrastructure
+description: 인프라 / 배포 / DevOps 작업
+title: "[INFRA] "
+labels: ["infra", "needs-triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## ⚙️ 인프라 작업 요청
+        배포, 서버, 네트워크, CI/CD 등 시스템 변경 관련 작업입니다.
+
+  - type: input
+    id: summary
+    attributes:
+      label: 📌 작업 요약
+      placeholder: ex) AWS EC2 인스턴스 스케일 업
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: 🏷️ 작업 유형
+      options:
+        - 배포 (Deployment)
+        - 인프라 변경 (Infra Change)
+        - CI/CD
+        - 모니터링 / 로깅
+        - 보안 설정
+        - 기타
+    validations:
+      required: true
+
+  - type: textarea
+    id: background
+    attributes:
+      label: 📖 배경 / 목적
+      description: 왜 이 작업이 필요한가
+      placeholder: |
+        - 성능 개선
+        - 비용 절감
+        - 장애 대응
+        - 신규 기능 지원 등
+    validations:
+      required: true
+
+  - type: textarea
+    id: changes
+    attributes:
+      label: 🔧 변경 사항
+      description: 실제로 어떤 변경이 이루어지는지
+      placeholder: |
+        - EC2 t2.micro → t3.medium 변경
+        - Docker 설정 수정
+        - GitHub Actions workflow 수정
+    validations:
+      required: true
+
+
+  - type: dropdown
+    id: downtime
+    attributes:
+      label: ⛔ 다운타임 여부
+      options:
+        - 없음
+        - 있음 (짧음)
+        - 있음 (길음)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk
+    attributes:
+      label: ⚠️ 리스크 수준
+      options:
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+
+  - type: textarea
+    id: rollback
+    attributes:
+      label: 🔙 롤백 계획
+      description: 문제 발생 시 어떻게 복구할 것인가
+      placeholder: |
+        - 이전 AMI로 롤백
+        - 이전 Docker 이미지로 재배포
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: ✅ 검증 방법
+      description: 변경 후 정상 동작 확인 방법
+      placeholder: |
+        - 헬스 체크 API 확인
+        - 로그 확인
+        - 사용자 시나리오 테스트
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 📎 추가 정보

@@ -1,0 +1,49 @@
+name: 📚 Documentation
+description: 문서 수정 또는 추가
+title: "[DOCS] "
+labels: ["documentation", "backend"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 📚 문서 작업
+
+  - type: input
+    id: target
+    attributes:
+      label: 📌 대상 문서
+      placeholder: ex) README.md / API Docs
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: ✏️ 작업 유형
+      options:
+        - 수정 (Fix)
+        - 추가 (Add)
+        - 삭제 (Remove)
+        - 구조 개선 (Improve)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 📖 상세 내용
+      placeholder: 어떤 내용을 어떻게 변경할지 설명
+    validations:
+      required: true
+
+  - type: textarea
+    id: reason
+    attributes:
+      label: 🎯 목적
+      description: 왜 이 변경이 필요한가
+
+  - type: textarea
+    id: reference
+    attributes:
+      label: 🔗 참고 자료(선택)
