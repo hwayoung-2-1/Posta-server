@@ -1,0 +1,11 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/developtest}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USER:developtest}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:developtest}}
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:localhost}
+      port: ${SPRING_REDIS_PORT:6379}
+  jpa:
+    show-sql: true
