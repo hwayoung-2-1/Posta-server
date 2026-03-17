@@ -40,3 +40,5 @@ out/
 
 .env.prod
 .env.dev
+
+/src/main/java/com/hwayoung/hwayoungserver/.DS_Store
