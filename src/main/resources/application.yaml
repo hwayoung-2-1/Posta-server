@@ -6,7 +6,8 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
+#      위에서 none에서 바꿈
     properties:
       hibernate:
         format_sql: true
