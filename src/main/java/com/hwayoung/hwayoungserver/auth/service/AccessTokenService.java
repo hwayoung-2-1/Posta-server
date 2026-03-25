@@ -69,4 +69,13 @@ public class AccessTokenService {
     public void deleteValidTokenByUserId(Long userId) {
         accessTokenRepository.deleteValidTokenByUserId(userId, LocalDateTime.now());
     }
+
+    /**
+     * 로그아웃 - 토큰 삭제
+     */
+    @Transactional
+    public void logout(String token) {
+        accessTokenRepository.deleteByToken(token);
+        log.info("로그아웃 완료 - 토큰 삭제됨");
+    }
 }

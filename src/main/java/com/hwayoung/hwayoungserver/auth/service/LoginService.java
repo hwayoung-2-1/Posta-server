@@ -43,4 +43,8 @@ public class LoginService {
 
         return LoginResponse.of(accessToken);
     }
+
+    public void logout(String token) {
+        accessTokenService.logout(token);
+    }
 }

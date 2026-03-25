@@ -39,4 +39,11 @@ public interface AccessTokenRepository extends JpaRepository<AccessToken, String
     @Query("DELETE FROM AccessToken a WHERE a.userId = :userId AND a.expiredAt > :now")
     void deleteValidTokenByUserId(@Param("userId") Long userId, @Param("now") LocalDateTime now);
 
+    /**
+     * 토큰으로 삭제 (로그아웃)
+     */
+    @Modifying
+    @Query("DELETE FROM AccessToken a WHERE a.token = :token")
+    void deleteByToken(@Param("token") String token);
+
 }
