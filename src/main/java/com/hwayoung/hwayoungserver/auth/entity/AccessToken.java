@@ -12,14 +12,7 @@ import java.time.LocalDateTime;
 /**
  * JWT 액세스 토큰을 저장하는 엔티티
  * PostgreSQL UNLOGGED TABLE로 생성되어야 함
- *
- * DDL 예시:
- * CREATE UNLOGGED TABLE access_token (
- *   token VARCHAR(500) PRIMARY KEY,
- *   user_id BIGINT NOT NULL,
- *   expired_at TIMESTAMP NOT NULL,
- *   created_at TIMESTAMP NOT NULL
- * );
+ * ALTER TABLE access_token SET UNLOGGED;
  */
 @Entity
 @Table(name = "access_token")
