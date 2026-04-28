@@ -24,7 +24,7 @@ public class DatabaseInitializer implements ApplicationRunner {
             jdbcTemplate.execute("ALTER TABLE access_token SET UNLOGGED");
             log.info("access_token 테이블을 UNLOGGED로 변환 완료");
         } catch (Exception e) {
-            log.warn("뭔가 이상한데 재실행 권장(access_token테이블 변환중 이상 발생) : {}", e.getMessage());
+            log.warn("access_token 테이블 변환중 이상 발생 : {}", e.getMessage());
         }
     }
 }

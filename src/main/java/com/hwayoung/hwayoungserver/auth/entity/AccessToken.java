@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * JWT 액세스 토큰을 저장하는 엔티티
@@ -27,12 +28,12 @@ public class AccessToken {
     private String token;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private UUID userId;
 
-    @Column(name = "expired_at", nullable = false)
+    @Column(name = "expired_at", nullable = false, updatable = false)
     private LocalDateTime expiredAt;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     /**

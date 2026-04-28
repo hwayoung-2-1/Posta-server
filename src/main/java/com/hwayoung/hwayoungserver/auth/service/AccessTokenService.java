@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -23,7 +24,7 @@ public class AccessTokenService {
      * 토큰을 DB에 저장
      */
     @Transactional
-    public void saveToken(String token, Long userId) {
+    public void saveToken(String token, UUID userId) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime expiredAt = now.plusSeconds(jwtExpiration / 1000);
 
@@ -43,7 +44,7 @@ public class AccessTokenService {
      */
     @Transactional(readOnly = true)
     public boolean isValidToken(String token) {
-        return accessTokenRepository.findValidToken(token, LocalDateTime.now()).isPresent();
+        return accessTokenRepository.findByTokenAndExpiredAtAfter(token, LocalDateTime.now()).isPresent();
     }
 
     /**
@@ -51,23 +52,23 @@ public class AccessTokenService {
      */
     @Transactional
     public void deleteExpiredTokens() {
-        accessTokenRepository.deleteExpiredTokens(LocalDateTime.now());
+        accessTokenRepository.deleteByExpiredAtBefore(LocalDateTime.now());
     }
 
     /**
      * 이미 로그인 중인지 확인
      */
     @Transactional(readOnly = true)
-    public boolean isAlreadyLogin(Long user_id) {
-        return accessTokenRepository.findLoggedinToken(user_id, LocalDateTime.now()).isPresent();
+    public boolean isAlreadyLogin(UUID user_id) {
+        return accessTokenRepository.findByUserIdAndExpiredAtAfter(user_id, LocalDateTime.now()).isPresent();
     }
 
     /**
      * 사용자 ID로 유효한 토큰 삭제 (새로운 로그인 시 기존 토큰 제거)
      */
     @Transactional
-    public void deleteValidTokenByUserId(Long userId) {
-        accessTokenRepository.deleteValidTokenByUserId(userId, LocalDateTime.now());
+    public void deleteValidTokenByUserId(UUID userId) {
+        accessTokenRepository.deleteByUserIdAndExpiredAtAfter(userId, LocalDateTime.now());
     }
 
     /**
