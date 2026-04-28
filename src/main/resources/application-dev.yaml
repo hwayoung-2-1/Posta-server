@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/developtest}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/developtest}
     username: ${SPRING_DATASOURCE_USERNAME:${DB_USER:developtest}}
     password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:developtest}}
   data:
