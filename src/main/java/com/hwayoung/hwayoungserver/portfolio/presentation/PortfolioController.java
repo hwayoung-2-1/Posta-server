@@ -5,8 +5,6 @@ import com.hwayoung.hwayoungserver.portfolio.domain.type.PortfolioVisibility;
 import com.hwayoung.hwayoungserver.portfolio.presentation.dto.request.OwnerNoteRequest;
 import com.hwayoung.hwayoungserver.portfolio.presentation.dto.response.OwnerNoteResponse;
 import com.hwayoung.hwayoungserver.portfolio.presentation.dto.response.PageDetailResponse;
-import com.hwayoung.hwayoungserver.portfolio.presentation.dto.response.PageListResponse;
-import com.hwayoung.hwayoungserver.portfolio.presentation.dto.response.PortfolioDetailResponse;
 import com.hwayoung.hwayoungserver.portfolio.presentation.dto.response.PortfolioListResponse;
 import com.hwayoung.hwayoungserver.portfolio.presentation.dto.response.ProcessingStatusResponse;
 import com.hwayoung.hwayoungserver.portfolio.presentation.dto.response.PublishPortfolioResponse;
@@ -50,12 +48,20 @@ public class PortfolioController {
             @RequestPart("file") MultipartFile file,
             @RequestParam String title,
             @RequestParam(required = false) String description,
-            @RequestParam(required = false) PortfolioVisibility visibility,
+            @RequestParam(required = false) String visibility,
             @RequestParam(required = false) List<UUID> roleIds,
             @RequestParam(required = false) List<UUID> skillIds
     ) {
         User user = currentUserService.getCurrentUser();
-        UploadPortfolioResponse response = portfolioService.upload(user, file, title, description, visibility, roleIds, skillIds);
+        UploadPortfolioResponse response = portfolioService.upload(
+                user,
+                file,
+                title,
+                description,
+                PortfolioVisibility.from(visibility),
+                roleIds,
+                skillIds
+        );
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -72,12 +78,6 @@ public class PortfolioController {
         return ResponseEntity.ok(portfolioService.list(user, page, size, role, skill, name, keyword));
     }
 
-    @GetMapping("/portfolios/{portfolioId}")
-    public ResponseEntity<PortfolioDetailResponse> detail(@PathVariable UUID portfolioId) {
-        User user = currentUserService.getCurrentUser();
-        return ResponseEntity.ok(portfolioService.detail(user, portfolioId));
-    }
-
     @PatchMapping("/portfolios/{portfolioId}")
     public ResponseEntity<UpdatePortfolioResponse> update(
             @PathVariable UUID portfolioId,
@@ -85,13 +85,6 @@ public class PortfolioController {
     ) {
         User user = currentUserService.getCurrentUser();
         return ResponseEntity.ok(portfolioService.update(user, portfolioId, request));
-    }
-
-    @DeleteMapping("/portfolios/{portfolioId}")
-    public ResponseEntity<Void> delete(@PathVariable UUID portfolioId) {
-        User user = currentUserService.getCurrentUser();
-        portfolioService.delete(user, portfolioId);
-        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/portfolios/{portfolioId}/publish")
@@ -104,12 +97,6 @@ public class PortfolioController {
     public ResponseEntity<ProcessingStatusResponse> processingStatus(@PathVariable UUID portfolioId) {
         User user = currentUserService.getCurrentUser();
         return ResponseEntity.ok(portfolioService.processingStatus(user, portfolioId));
-    }
-
-    @GetMapping("/portfolios/{portfolioId}/pages")
-    public ResponseEntity<PageListResponse> pages(@PathVariable UUID portfolioId) {
-        User user = currentUserService.getCurrentUser();
-        return ResponseEntity.ok(portfolioService.pages(user, portfolioId));
     }
 
     @GetMapping("/portfolios/{portfolioId}/pages/{pageNumber}")

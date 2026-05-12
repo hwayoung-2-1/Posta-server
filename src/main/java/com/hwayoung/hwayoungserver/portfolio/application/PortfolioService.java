@@ -96,6 +96,13 @@ public class PortfolioService {
         portfolioRepository.save(portfolio);
 
         StoredFile storedFile = fileStorageService.storePortfolioFile(portfolio.getId(), file);
+        portfolio.updatePdfMetadata(
+                storedFile.objectName(),
+                safeOriginalFilename(file),
+                contentType(file),
+                file.getSize(),
+                1
+        );
         PortfolioFile portfolioFile = portfolioFileRepository.save(new PortfolioFile(
                 portfolio,
                 safeOriginalFilename(file),
@@ -103,7 +110,7 @@ public class PortfolioService {
                 contentType(file),
                 file.getSize()
         ));
-        portfolioPageRepository.save(new PortfolioPage(portfolio, portfolioFile, 0, null, ""));
+        portfolioPageRepository.save(new PortfolioPage(portfolio, portfolioFile, 1, null, ""));
         portfolioSummaryRepository.save(new PortfolioSummary(portfolio, SummaryType.SHORT, defaultSummary(portfolio)));
         suggestedQuestionRepository.saveAll(List.of(
                 new SuggestedQuestion(portfolio, null, "이 포트폴리오에서 가장 핵심 프로젝트는 무엇인가요?", "DEFAULT", 0),

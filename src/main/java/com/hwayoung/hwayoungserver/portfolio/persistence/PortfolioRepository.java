@@ -22,5 +22,9 @@ public interface PortfolioRepository extends JpaRepository<Portfolio, UUID> {
     @Query("select p from Portfolio p where p.id = :id")
     Optional<Portfolio> findWithOwnerAndTagsById(@Param("id") UUID id);
 
+    @EntityGraph(attributePaths = {"owner"})
+    @Query("select p from Portfolio p where p.id = :id")
+    Optional<Portfolio> findWithOwnerById(@Param("id") UUID id);
+
     boolean existsByPublicSlug(String publicSlug);
 }

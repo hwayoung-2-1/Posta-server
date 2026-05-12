@@ -6,6 +6,7 @@ import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
 import io.minio.SetBucketPolicyArgs;
 import io.minio.http.Method;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriUtils;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -47,6 +49,61 @@ public class MinioFileStorageService implements FileStorageService {
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     "FILE_STORAGE_ERROR",
                     "파일 저장에 실패했습니다."
+            );
+        }
+    }
+
+    @Override
+    public void upload(String objectKey, byte[] bytes, String contentType) {
+        try (InputStream inputStream = new ByteArrayInputStream(bytes)) {
+            ensureBucket();
+            minioClient.putObject(PutObjectArgs.builder()
+                    .bucket(properties.getBucket())
+                    .object(objectKey)
+                    .stream(inputStream, bytes.length, -1)
+                    .contentType(contentType == null || contentType.isBlank() ? "application/pdf" : contentType)
+                    .build());
+        } catch (Exception exception) {
+            throw new ApiException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "FILE_STORAGE_ERROR",
+                    "파일 저장에 실패했습니다."
+            );
+        }
+    }
+
+    @Override
+    public void delete(String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return;
+        }
+        try {
+            minioClient.removeObject(RemoveObjectArgs.builder()
+                    .bucket(properties.getBucket())
+                    .object(objectKey)
+                    .build());
+        } catch (Exception ignored) {
+        }
+    }
+
+    @Override
+    public String presignedGetUrl(String objectKey, int expirySeconds) {
+        try {
+            return MinioClient.builder()
+                    .endpoint(properties.getPublicUrl())
+                    .credentials(properties.getAccessKey(), properties.getSecretKey())
+                    .build()
+                    .getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(properties.getBucket())
+                            .object(objectKey)
+                            .expiry(expirySeconds)
+                            .build());
+        } catch (Exception exception) {
+            throw new ApiException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "FILE_STORAGE_ERROR",
+                    "PDF 조회 URL 발급에 실패했습니다."
             );
         }
     }

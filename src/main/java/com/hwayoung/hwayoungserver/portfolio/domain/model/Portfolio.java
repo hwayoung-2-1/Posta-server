@@ -45,6 +45,27 @@ public class Portfolio extends AuditableEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+     @Column(name = "page_count", nullable = false)
+    private int pageCount = 0;
+
+    @Column(name = "pdf_object_key", length = 512)
+    private String pdfObjectKey;
+
+    @Column(name = "pdf_original_filename")
+    private String pdfOriginalFilename;
+
+    @Column(name = "pdf_content_type", length = 100)
+    private String pdfContentType;
+
+    @Column(name = "pdf_size", nullable = false)
+    private long pdfSize = 0L;
+
+    @Column(name = "like_count", nullable = false)
+    private int likeCount = 0;
+
+    @Column(name = "comment_count", nullable = false)
+    private int commentCount = 0;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PortfolioVisibility visibility = PortfolioVisibility.PRIVATE;
@@ -106,6 +127,34 @@ public class Portfolio extends AuditableEntity {
         return description;
     }
 
+    public int getPageCount() {
+        return pageCount;
+    }
+
+    public String getPdfObjectKey() {
+        return pdfObjectKey;
+    }
+
+    public String getPdfOriginalFilename() {
+        return pdfOriginalFilename;
+    }
+
+    public String getPdfContentType() {
+        return pdfContentType;
+    }
+
+    public long getPdfSize() {
+        return pdfSize;
+    }
+
+    public int getLikeCount() {
+        return likeCount;
+    }
+
+    public int getCommentCount() {
+        return commentCount;
+    }
+
     public PortfolioVisibility getVisibility() {
         return visibility;
     }
@@ -162,6 +211,20 @@ public class Portfolio extends AuditableEntity {
 
     public void updateThumbnailUrl(String thumbnailUrl) {
         this.thumbnailUrl = thumbnailUrl;
+    }
+
+    public void updatePdfMetadata(
+            String pdfObjectKey,
+            String pdfOriginalFilename,
+            String pdfContentType,
+            long pdfSize,
+            int pageCount
+    ) {
+        this.pdfObjectKey = pdfObjectKey;
+        this.pdfOriginalFilename = pdfOriginalFilename;
+        this.pdfContentType = pdfContentType;
+        this.pdfSize = pdfSize;
+        this.pageCount = pageCount;
     }
 
     public void publish(String publicSlug) {

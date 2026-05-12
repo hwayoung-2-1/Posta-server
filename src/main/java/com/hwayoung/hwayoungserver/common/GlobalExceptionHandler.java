@@ -34,8 +34,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ErrorResponse> handleUploadSize(MaxUploadSizeExceededException exception) {
         return ResponseEntity
-                .status(HttpStatus.UNPROCESSABLE_ENTITY)
-                .body(new ErrorResponse(HttpStatus.UNPROCESSABLE_ENTITY.value(), "UNSUPPORTED_FILE_TYPE", "업로드 파일을 처리할 수 없습니다."));
+                .status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(new ErrorResponse(HttpStatus.PAYLOAD_TOO_LARGE.value(), "FILE_SIZE_EXCEEDED", "업로드 파일 크기가 제한을 초과했습니다."));
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)

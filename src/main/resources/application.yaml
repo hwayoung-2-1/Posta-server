@@ -25,7 +25,20 @@ spring:
 jwt:
   secret: ${JWT_SECRET}
   expiration: 43200000
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
 app:
+  portfolio:
+    pdf:
+      max-size-bytes: ${PORTFOLIO_PDF_MAX_SIZE_BYTES:52428800}
+      view-url-expiry-seconds: ${PORTFOLIO_PDF_VIEW_URL_EXPIRY_SECONDS:600}
   minio:
     endpoint: ${MINIO_ENDPOINT}
     public-url: ${MINIO_PUBLIC_URL:${MINIO_ENDPOINT}}

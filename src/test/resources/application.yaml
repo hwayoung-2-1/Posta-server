@@ -13,7 +13,18 @@ spring:
 jwt:
   secret: we-are-bssm-project-internship-hwayoung-team1
   expiration: 43200000
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
 app:
+  portfolio:
+    pdf:
+      max-size-bytes: 52428800
+      view-url-expiry-seconds: 600
   minio:
     endpoint: http://localhost:9000
     public-url: http://localhost:9000

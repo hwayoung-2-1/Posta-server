@@ -5,9 +5,8 @@ import com.hwayoung.hwayoungserver.portfolio.domain.model.Portfolio;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public record PortfolioDetailResponse(
+public record UploadPortfolioPdfResponse(
         UUID id,
-        UUID ownerId,
         String title,
         String description,
         String visibility,
@@ -18,10 +17,9 @@ public record PortfolioDetailResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
-    public static PortfolioDetailResponse from(Portfolio portfolio) {
-        return new PortfolioDetailResponse(
+    public static UploadPortfolioPdfResponse from(Portfolio portfolio) {
+        return new UploadPortfolioPdfResponse(
                 portfolio.getId(),
-                portfolio.getOwner().getId(),
                 portfolio.getTitle(),
                 portfolio.getDescription(),
                 portfolio.getVisibility().toJson(),
@@ -32,9 +30,5 @@ public record PortfolioDetailResponse(
                 portfolio.getCreatedAt(),
                 portfolio.getUpdatedAt()
         );
-    }
-
-    public static PortfolioDetailResponse of(Portfolio portfolio, int pageCount, String summary) {
-        return from(portfolio);
     }
 }
