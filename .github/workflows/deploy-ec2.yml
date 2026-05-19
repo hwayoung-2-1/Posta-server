@@ -210,7 +210,14 @@ jobs:
               docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down --remove-orphans
             fi
 
-            rm -f app/app.jar
+            
+            if [ -e app/app.jar ]; then
+              if [ -d app/app.jar ]; then
+                rm -rf app/app.jar
+              else
+                rm -f app/app.jar
+              fi
+            fi
           fi
 
           mv /tmp/hwayoung-app.jar "${deploy_path}/app/app.jar"
