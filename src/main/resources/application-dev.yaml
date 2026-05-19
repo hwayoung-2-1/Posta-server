@@ -9,3 +9,13 @@ spring:
       port: ${SPRING_REDIS_PORT:6379}
   jpa:
     show-sql: true
+app:
+  minio:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    public-url: ${MINIO_PUBLIC_URL:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin123}
+    bucket: ${MINIO_BUCKET:hwayoung-portfolios}
+    url-mode: ${MINIO_URL_MODE:PRESIGNED}
+    public-read: ${MINIO_PUBLIC_READ:false}
+    presigned-expiry-seconds: ${MINIO_PRESIGNED_EXPIRY_SECONDS:3600}
