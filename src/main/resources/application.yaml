@@ -3,6 +3,10 @@ spring:
     name: hwayoung-server
   datasource:
     driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
+    baseline-on-migrate: ${SPRING_FLYWAY_BASELINE_ON_MIGRATE:true}
+    locations: classpath:db/migration
   jpa:
     open-in-view: false
     hibernate:
@@ -22,6 +26,48 @@ spring:
       prod-update: prod,ddl-update
       prod-validate: prod,ddl-validate
       prod-none: prod,ddl-none
+  ai:
+    model:
+      chat: ${AI_CHAT_PROVIDER:none}
+      embedding: ${AI_EMBEDDING_PROVIDER:none}
+      image: none
+      audio:
+        speech: none
+        transcription: none
+      moderation: none
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      chat:
+        options:
+          model: ${OPENAI_CHAT_MODEL:gpt-4o-mini}
+          temperature: ${AI_CHAT_TEMPERATURE:0.2}
+      embedding:
+        options:
+          model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
+    google:
+      genai:
+        api-key: ${GEMINI_API_KEY:}
+        chat:
+          options:
+            model: ${GEMINI_CHAT_MODEL:gemini-2.0-flash}
+            temperature: ${AI_CHAT_TEMPERATURE:0.2}
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        options:
+          model: ${OLLAMA_CHAT_MODEL:llama3.1}
+          temperature: ${AI_CHAT_TEMPERATURE:0.2}
+      embedding:
+        options:
+          model: ${OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
+    vectorstore:
+      type: ${AI_VECTOR_STORE_TYPE:none}
+      pgvector:
+        initialize-schema: ${AI_VECTOR_INITIALIZE_SCHEMA:false}
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+        dimensions: ${AI_VECTOR_DIMENSIONS:1536}
+        max-document-batch-size: ${AI_VECTOR_MAX_DOCUMENT_BATCH_SIZE:1000}
 jwt:
   secret: ${JWT_SECRET}
   expiration: 43200000
@@ -48,3 +94,10 @@ app:
     url-mode: ${MINIO_URL_MODE:PRESIGNED}
     public-read: ${MINIO_PUBLIC_READ:false}
     presigned-expiry-seconds: ${MINIO_PRESIGNED_EXPIRY_SECONDS:3600}
+  ai:
+    rag:
+      top-k: ${AI_RAG_TOP_K:6}
+      similarity-threshold: ${AI_RAG_SIMILARITY_THRESHOLD:0.55}
+      max-context-characters: ${AI_RAG_MAX_CONTEXT_CHARACTERS:7000}
+      chunk-size: ${AI_RAG_CHUNK_SIZE:1200}
+      chunk-overlap: ${AI_RAG_CHUNK_OVERLAP:160}

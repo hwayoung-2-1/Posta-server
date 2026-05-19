@@ -64,4 +64,20 @@ public class PortfolioIndexJob extends AuditableEntity {
     public JobStatus getStatus() {
         return status;
     }
+
+    public void markRunning() {
+        this.status = JobStatus.RUNNING;
+        this.startedAt = LocalDateTime.now();
+    }
+
+    public void markDone() {
+        this.status = JobStatus.DONE;
+        this.finishedAt = LocalDateTime.now();
+    }
+
+    public void markFailed(String errorMessage) {
+        this.status = JobStatus.FAILED;
+        this.errorMessage = errorMessage;
+        this.finishedAt = LocalDateTime.now();
+    }
 }
