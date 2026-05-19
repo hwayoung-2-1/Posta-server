@@ -210,13 +210,8 @@ jobs:
               docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down --remove-orphans
             fi
 
-            
-            if [ -e app/app.jar ]; then
-              if [ -d app/app.jar ]; then
-                rm -rf app/app.jar
-              else
-                rm -f app/app.jar
-              fi
+            if [ -e "app/app.jar" ] || [ -L "app/app.jar" ]; then
+              rm -rf "app/app.jar"
             fi
           fi
 
