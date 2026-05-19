@@ -7,7 +7,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
 
 public interface PortfolioSummaryRepository extends JpaRepository<PortfolioSummary, UUID> {
     Optional<PortfolioSummary> findFirstByPortfolioAndSummaryType(Portfolio portfolio, SummaryType summaryType);
+
+    List<PortfolioSummary> findByPortfolio(Portfolio portfolio);
 }

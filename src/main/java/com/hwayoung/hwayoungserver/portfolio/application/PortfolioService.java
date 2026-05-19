@@ -77,6 +77,7 @@ public class PortfolioService {
     private final RoleRepository roleRepository;
     private final SkillRepository skillRepository;
     private final FileStorageService fileStorageService;
+    private final PortfolioVectorIndexService portfolioVectorIndexService;
 
     @Transactional
     public UploadPortfolioResponse upload(
@@ -232,6 +233,14 @@ public class PortfolioService {
     public ReindexResponse reindex(User owner, UUID portfolioId) {
         Portfolio portfolio = getOwnedPortfolio(owner, portfolioId);
         PortfolioIndexJob job = portfolioIndexJobRepository.save(new PortfolioIndexJob(portfolio, JobType.REINDEX, JobStatus.PENDING));
+        try {
+            job.markRunning();
+            portfolioVectorIndexService.reindex(portfolio);
+            job.markDone();
+        } catch (RuntimeException exception) {
+            job.markFailed(exception.getMessage());
+            throw exception;
+        }
         return new ReindexResponse(portfolio.getId(), job.getId(), job.getStatus());
     }
 

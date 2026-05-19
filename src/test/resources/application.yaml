@@ -4,12 +4,27 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password:
+  flyway:
+    enabled: false
   jpa:
     hibernate:
       ddl-auto: create-drop
     properties:
       hibernate:
         format_sql: false
+  ai:
+    model:
+      chat: none
+      embedding: none
+      image: none
+      audio:
+        speech: none
+        transcription: none
+      moderation: none
+    vectorstore:
+      type: none
+      pgvector:
+        initialize-schema: false
 jwt:
   secret: we-are-bssm-project-internship-hwayoung-team1
   expiration: 43200000

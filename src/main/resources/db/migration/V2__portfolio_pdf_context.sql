@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS portfolio_context (
     portfolio_id UUID NOT NULL REFERENCES portfolios(id),
     page_number INTEGER NOT NULL,
     content TEXT NOT NULL,
-    embedding VECTOR NULL,
+    embedding TEXT NULL,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL
 );

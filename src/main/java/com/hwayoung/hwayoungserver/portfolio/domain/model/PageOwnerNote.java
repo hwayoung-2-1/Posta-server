@@ -45,6 +45,14 @@ public class PageOwnerNote extends AuditableEntity {
         return content;
     }
 
+    public UUID getId() {
+        return id;
+    }
+
+    public PortfolioPage getPortfolioPage() {
+        return portfolioPage;
+    }
+
     public void update(String content) {
         this.content = content;
     }
