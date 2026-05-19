@@ -1,4 +1,4 @@
-정services:
+services:
   postgres:
     image: postgres:16
     container_name: hwayoung-postgres-prod
