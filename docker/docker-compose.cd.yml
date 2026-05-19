@@ -32,6 +32,20 @@ services:
       retries: 10
     restart: unless-stopped
 
+  minio:
+    image: minio/minio
+    container_name: hwayoung-minio-prod
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    restart: unless-stopped
+
   app:
     image: eclipse-temurin:17-jre
     container_name: hwayoung-app-prod
@@ -39,8 +53,9 @@ services:
     command: ["java", "-jar", "/app/app.jar"]
     volumes:
       - ../app/app.jar:/app/app.jar:ro
+
     environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_ACTIVE_PROFILES:-prod,ddl-validate}
+      SPRING_PROFILES_ACTIVE: ${SPRING_ACTIVE_PROFILES:-prod,ddl-update}
 
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/${DB_NAME}}
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
@@ -49,6 +64,12 @@ services:
       SPRING_REDIS_HOST: ${SPRING_REDIS_HOST:-redis}
       SPRING_REDIS_PORT: ${SPRING_REDIS_PORT:-6379}
 
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_URL: http://localhost:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: hwayoung-portfolios
+
       AI_CHAT_PROVIDER: ${AI_CHAT_PROVIDER:-none}
       AI_EMBEDDING_PROVIDER: ${AI_EMBEDDING_PROVIDER:-none}
       AI_VECTOR_STORE_TYPE: ${AI_VECTOR_STORE_TYPE:-none}
@@ -56,11 +77,14 @@ services:
       AI_VECTOR_DIMENSIONS: ${AI_VECTOR_DIMENSIONS:-1536}
       AI_RAG_TOP_K: ${AI_RAG_TOP_K:-6}
       AI_RAG_SIMILARITY_THRESHOLD: ${AI_RAG_SIMILARITY_THRESHOLD:-0.55}
+
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_CHAT_MODEL: ${GEMINI_CHAT_MODEL:-gemini-2.0-flash}
+
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-llama3.1}
       OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
@@ -75,9 +99,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_started
 
     restart: unless-stopped
 
 volumes:
   postgres-prod-data:
   redis-prod-data:
+  minio-data:
