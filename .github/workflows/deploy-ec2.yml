@@ -184,19 +184,48 @@ jobs:
           deploy_user="$(id -un)"
           deploy_group="$(id -gn)"
 
-          if ! mkdir -p "${deploy_path}/app" "${deploy_path}/docker" 2>/dev/null; then
+          require_passwordless_sudo() {
             if ! command -v sudo >/dev/null 2>&1; then
-              echo "Cannot create ${deploy_path}. Set EC2_DEPLOY_PATH to a writable path, such as ${HOME}/hwayoung-server." >&2
+              echo "Cannot update ${deploy_path}. The EC2 user needs write permission or sudo." >&2
               exit 1
             fi
 
             if ! sudo -n true 2>/dev/null; then
-              echo "Cannot create ${deploy_path}. The EC2 user needs write permission or passwordless sudo." >&2
+              echo "Cannot update ${deploy_path}. The EC2 user needs write permission or passwordless sudo." >&2
               exit 1
             fi
+          }
 
-            sudo -n mkdir -p "${deploy_path}/app" "${deploy_path}/docker"
-            sudo -n chown -R "${deploy_user}:${deploy_group}" "${deploy_path}"
+          run_with_sudo() {
+            require_passwordless_sudo
+            sudo -n "$@"
+          }
+
+          remove_existing_path() {
+            target="$1"
+            if [ -e "${target}" ] || [ -L "${target}" ]; then
+              rm -rf "${target}" 2>/dev/null || run_with_sudo rm -rf "${target}"
+            fi
+          }
+
+          move_deploy_file() {
+            source="$1"
+            target="$2"
+            if ! mv "${source}" "${target}" 2>/dev/null; then
+              run_with_sudo mv "${source}" "${target}"
+              run_with_sudo chown "${deploy_user}:${deploy_group}" "${target}"
+            fi
+          }
+
+          set_file_mode() {
+            mode="$1"
+            target="$2"
+            chmod "${mode}" "${target}" 2>/dev/null || run_with_sudo chmod "${mode}" "${target}"
+          }
+
+          if ! mkdir -p "${deploy_path}/app" "${deploy_path}/docker" 2>/dev/null; then
+            run_with_sudo mkdir -p "${deploy_path}/app" "${deploy_path}/docker"
+            run_with_sudo chown -R "${deploy_user}:${deploy_group}" "${deploy_path}"
           fi
 
           if [ -d "${deploy_path}" ]; then
@@ -210,15 +239,13 @@ jobs:
               docker compose --env-file .env.prod -f docker/docker-compose.prod.yml down --remove-orphans
             fi
 
-            if [ -e "app/app.jar" ] || [ -L "app/app.jar" ]; then
-              rm -rf "app/app.jar"
-            fi
+            remove_existing_path "app/app.jar"
           fi
 
-          mv /tmp/hwayoung-app.jar "${deploy_path}/app/app.jar"
-          mv /tmp/hwayoung-docker-compose.cd.yml "${deploy_path}/docker/docker-compose.cd.yml"
-          mv /tmp/hwayoung.env.prod "${deploy_path}/.env.prod"
-          chmod 600 "${deploy_path}/.env.prod"
+          move_deploy_file /tmp/hwayoung-app.jar "${deploy_path}/app/app.jar"
+          move_deploy_file /tmp/hwayoung-docker-compose.cd.yml "${deploy_path}/docker/docker-compose.cd.yml"
+          move_deploy_file /tmp/hwayoung.env.prod "${deploy_path}/.env.prod"
+          set_file_mode 600 "${deploy_path}/.env.prod"
 
           cd "${deploy_path}"
 
