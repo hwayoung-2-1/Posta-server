@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "app.portfolio.pdf")
 public class PortfolioPdfProperties {
-    private long maxSizeBytes = 50L * 1024L * 1024L;
+    private long maxSizeBytes = 1000L * 1024L * 1024L;
     private int viewUrlExpirySeconds = 600;
 
     public long getMaxSizeBytes() {
