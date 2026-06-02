@@ -15,11 +15,15 @@ public record PortfolioListItemResponse(
         boolean saved
 ) {
     public static PortfolioListItemResponse of(Portfolio portfolio, boolean saved) {
+        return of(portfolio, portfolio.getThumbnailUrl(), saved);
+    }
+
+    public static PortfolioListItemResponse of(Portfolio portfolio, String thumbnailUrl, boolean saved) {
         return new PortfolioListItemResponse(
                 portfolio.getId(),
                 portfolio.getTitle(),
                 portfolio.getOwner().getName(),
-                portfolio.getThumbnailUrl(),
+                thumbnailUrl,
                 portfolio.getRoles().stream().map(role -> role.getName()).toList(),
                 portfolio.getSkills().stream().map(skill -> skill.getName()).toList(),
                 saved

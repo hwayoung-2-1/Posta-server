@@ -14,6 +14,7 @@ import com.hwayoung.hwayoungserver.portfolio.domain.type.JobType;
 import com.hwayoung.hwayoungserver.portfolio.domain.type.PortfolioStatus;
 import com.hwayoung.hwayoungserver.portfolio.domain.type.PortfolioVisibility;
 import com.hwayoung.hwayoungserver.portfolio.domain.type.SummaryType;
+import com.hwayoung.hwayoungserver.portfolio.exception.FileUploadFailedException;
 import com.hwayoung.hwayoungserver.portfolio.persistence.PageOwnerNoteRepository;
 import com.hwayoung.hwayoungserver.portfolio.persistence.PortfolioFileRepository;
 import com.hwayoung.hwayoungserver.portfolio.persistence.PortfolioIndexJobRepository;
@@ -54,9 +55,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.text.Normalizer;
 import java.util.Comparator;
 import java.util.List;
@@ -78,6 +82,9 @@ public class PortfolioService {
     private final SkillRepository skillRepository;
     private final FileStorageService fileStorageService;
     private final PortfolioVectorIndexService portfolioVectorIndexService;
+    private final PdfPageCountReader pdfPageCountReader;
+    private final PdfFirstPageThumbnailRenderer pdfFirstPageThumbnailRenderer;
+    private final PortfolioPdfProperties portfolioPdfProperties;
 
     @Transactional
     public UploadPortfolioResponse upload(
@@ -90,28 +97,52 @@ public class PortfolioService {
             List<UUID> skillIds
     ) {
         validateUpload(file, title);
+        byte[] bytes = readBytes(file);
+        int pageCount = pdfPageCountReader.countPages(bytes);
+        byte[] thumbnailBytes = pdfFirstPageThumbnailRenderer.render(bytes);
 
         Portfolio portfolio = new Portfolio(owner, title, description, visibility);
         portfolio.replaceRoles(resolveRoles(roleIds));
         portfolio.replaceSkills(resolveSkills(skillIds));
         portfolioRepository.save(portfolio);
 
-        StoredFile storedFile = fileStorageService.storePortfolioFile(portfolio.getId(), file);
-        portfolio.updatePdfMetadata(
-                storedFile.objectName(),
-                safeOriginalFilename(file),
-                contentType(file),
-                file.getSize(),
-                1
-        );
-        PortfolioFile portfolioFile = portfolioFileRepository.save(new PortfolioFile(
-                portfolio,
-                safeOriginalFilename(file),
-                storedFile.storageUrl(),
-                contentType(file),
-                file.getSize()
-        ));
-        portfolioPageRepository.save(new PortfolioPage(portfolio, portfolioFile, 1, null, ""));
+        String thumbnailObjectKey = thumbnailObjectKey(owner, portfolio);
+        StoredFile storedFile = null;
+        boolean uploadedThumbnail = false;
+        boolean uploadedPortfolioFile = false;
+        try {
+            fileStorageService.upload(thumbnailObjectKey, thumbnailBytes, PdfFirstPageThumbnailRenderer.CONTENT_TYPE);
+            uploadedThumbnail = true;
+            deleteUploadedObjectOnRollback(thumbnailObjectKey);
+
+            storedFile = fileStorageService.storePortfolioFile(portfolio.getId(), file);
+            uploadedPortfolioFile = true;
+            deleteUploadedObjectOnRollback(storedFile.objectName());
+            portfolio.updateThumbnailObjectKey(thumbnailObjectKey);
+            portfolio.updatePdfMetadata(
+                    storedFile.objectName(),
+                    safeOriginalFilename(file),
+                    contentType(file),
+                    file.getSize(),
+                    pageCount
+            );
+            PortfolioFile portfolioFile = portfolioFileRepository.save(new PortfolioFile(
+                    portfolio,
+                    safeOriginalFilename(file),
+                    storedFile.storageUrl(),
+                    contentType(file),
+                    file.getSize()
+            ));
+            portfolioPageRepository.save(new PortfolioPage(portfolio, portfolioFile, 1, null, ""));
+        } catch (RuntimeException exception) {
+            if (uploadedPortfolioFile && storedFile != null) {
+                fileStorageService.delete(storedFile.objectName());
+            }
+            if (uploadedThumbnail) {
+                fileStorageService.delete(thumbnailObjectKey);
+            }
+            throw exception;
+        }
         portfolioSummaryRepository.save(new PortfolioSummary(portfolio, SummaryType.SHORT, defaultSummary(portfolio)));
         suggestedQuestionRepository.saveAll(List.of(
                 new SuggestedQuestion(portfolio, null, "이 포트폴리오에서 가장 핵심 프로젝트는 무엇인가요?", "DEFAULT", 0),
@@ -137,7 +168,11 @@ public class PortfolioService {
         int fromIndex = Math.min((int) pageable.getOffset(), filtered.size());
         int toIndex = Math.min(fromIndex + pageable.getPageSize(), filtered.size());
         List<PortfolioListItemResponse> content = filtered.subList(fromIndex, toIndex).stream()
-                .map(portfolio -> PortfolioListItemResponse.of(portfolio, savedPortfolioRepository.existsByUserAndPortfolio(viewer, portfolio)))
+                .map(portfolio -> PortfolioListItemResponse.of(
+                        portfolio,
+                        thumbnailUrl(portfolio),
+                        viewer != null && savedPortfolioRepository.existsByUserAndPortfolio(viewer, portfolio)
+                ))
                 .toList();
         int totalPages = filtered.isEmpty() ? 0 : (int) Math.ceil((double) filtered.size() / pageable.getPageSize());
         return new PortfolioListResponse(content, pageable.getPageNumber(), pageable.getPageSize(), filtered.size(), totalPages);
@@ -376,10 +411,51 @@ public class PortfolioService {
     }
 
     private boolean canList(Portfolio portfolio, User viewer) {
-        if (portfolio.getOwner().getId().equals(viewer.getId())) {
+        if (viewer != null && portfolio.getOwner().getId().equals(viewer.getId())) {
             return true;
         }
-        return portfolio.getStatus() == PortfolioStatus.PUBLISHED && portfolio.getVisibility() == PortfolioVisibility.PUBLIC;
+        return isPubliclyListable(portfolio);
+    }
+
+    private boolean isPubliclyListable(Portfolio portfolio) {
+        return portfolio.getVisibility() == PortfolioVisibility.PUBLIC
+                && (portfolio.getStatus() == PortfolioStatus.READY || portfolio.getStatus() == PortfolioStatus.PUBLISHED);
+    }
+
+    private String thumbnailUrl(Portfolio portfolio) {
+        if (StringUtils.hasText(portfolio.getThumbnailObjectKey())) {
+            return fileStorageService.presignedGetUrl(
+                    portfolio.getThumbnailObjectKey(),
+                    portfolioPdfProperties.getViewUrlExpirySeconds()
+            );
+        }
+        return portfolio.getThumbnailUrl();
+    }
+
+    private String thumbnailObjectKey(User owner, Portfolio portfolio) {
+        return "portfolios/" + owner.getId() + "/" + portfolio.getId() + "/first-page.png";
+    }
+
+    private byte[] readBytes(MultipartFile file) {
+        try {
+            return file.getBytes();
+        } catch (IOException exception) {
+            throw new FileUploadFailedException();
+        }
+    }
+
+    private void deleteUploadedObjectOnRollback(String objectKey) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_ROLLED_BACK) {
+                    fileStorageService.delete(objectKey);
+                }
+            }
+        });
     }
 
     private boolean matchesRole(Portfolio portfolio, String role) {

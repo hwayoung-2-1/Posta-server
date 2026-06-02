@@ -80,6 +80,9 @@ public class Portfolio extends AuditableEntity {
     @Column(name = "thumbnail_url")
     private String thumbnailUrl;
 
+    @Column(name = "thumbnail_object_key", length = 512)
+    private String thumbnailObjectKey;
+
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
 
@@ -171,6 +174,10 @@ public class Portfolio extends AuditableEntity {
         return thumbnailUrl;
     }
 
+    public String getThumbnailObjectKey() {
+        return thumbnailObjectKey;
+    }
+
     public LocalDateTime getPublishedAt() {
         return publishedAt;
     }
@@ -211,6 +218,10 @@ public class Portfolio extends AuditableEntity {
 
     public void updateThumbnailUrl(String thumbnailUrl) {
         this.thumbnailUrl = thumbnailUrl;
+    }
+
+    public void updateThumbnailObjectKey(String thumbnailObjectKey) {
+        this.thumbnailObjectKey = thumbnailObjectKey;
     }
 
     public void updatePdfMetadata(

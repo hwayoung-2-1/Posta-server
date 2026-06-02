@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS portfolios (
     status VARCHAR(255) NOT NULL,
     public_slug VARCHAR(255) UNIQUE,
     thumbnail_url VARCHAR(255),
+    thumbnail_object_key VARCHAR(512),
     published_at TIMESTAMP,
     page_count INTEGER NOT NULL DEFAULT 0,
     pdf_object_key VARCHAR(512),
