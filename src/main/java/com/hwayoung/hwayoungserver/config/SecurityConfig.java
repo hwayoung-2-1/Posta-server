@@ -41,6 +41,7 @@ public class SecurityConfig {
                                 "/v3/api-docs",
                                 "/v3/api-docs/**"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/portfolios").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/portfolios/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/portfolios/*/pdf/view-url").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/portfolios/*/pages").permitAll()

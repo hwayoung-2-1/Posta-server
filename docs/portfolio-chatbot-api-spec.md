@@ -5,11 +5,12 @@
 ## 공통
 
 - Base URL: `/api/v1`
-- 회원가입과 로그인을 제외한 모든 API는 `Authorization: Bearer {accessToken}`이 필요합니다.
-- 비로그인 조회자는 허용하지 않습니다.
+- 회원가입, 로그인, 공개 포트폴리오 조회 API는 `Authorization: Bearer {accessToken}` 없이 호출할 수 있습니다.
+- 인증이 선택인 조회 API는 토큰이 있으면 현재 사용자 기준 정보(`saved`, 본인 private 포트폴리오 등)를 함께 반영합니다.
 - 모든 엔티티 식별자는 UUID 문자열을 사용합니다.
 - `page`, `size`는 0-based pagination 기준입니다.
-- `PUBLIC`은 로그인 사용자 전체 공개, `LINK_ONLY`는 링크를 가진 로그인 사용자만 접근 가능한 상태입니다.
+- `PUBLIC`은 공개 조회 가능, `PRIVATE`은 작성자만 접근 가능한 상태입니다.
+- 포트폴리오 목록의 `thumbnailUrl`은 업로드된 PDF 첫 페이지를 PNG로 렌더링한 MinIO presigned 다운로드 URL입니다.
 
 ## Auth
 
@@ -60,6 +61,8 @@
 ### 내 정보 조회
 
 `GET /api/v1/users/me`
+
+요청 body, query parameter는 사용하지 않습니다. 서버가 JWT 토큰의 subject로 현재 사용자를 식별합니다.
 
 `200 OK`
 
@@ -155,19 +158,64 @@
 | `roleIds` | `uuid[]` | N | 포트폴리오 직군 |
 | `skillIds` | `uuid[]` | N | 포트폴리오 기술 |
 
+업로드 시 PDF 첫 페이지를 PNG로 렌더링해 MinIO에 저장합니다. 포트폴리오 목록 조회의 `thumbnailUrl`은 이 첫 페이지 이미지 다운로드 URL입니다.
+
 `201 Created`
 
 ```json
 {
   "portfolioId": "30000000-0000-4000-8000-000000000010",
-  "status": "PROCESSING",
+  "status": "READY",
+  "fileUrl": "https://minio.example.com/hwayoung-portfolios/portfolios/30000000-0000-4000-8000-000000000010/original.pdf?X-Amz-Expires=3600",
   "processingStatusUrl": "/api/v1/portfolios/30000000-0000-4000-8000-000000000010/processing-status"
+}
+```
+
+### PDF 포트폴리오 업로드
+
+`POST /api/v1/portfolios/pdf`
+
+`multipart/form-data`
+
+| 이름 | 타입 | 필수 | 설명 |
+| --- | --- | --- | --- |
+| `file` | `file` | Y | PDF 포트폴리오 |
+| `title` | `string` | Y | 포트폴리오 제목 |
+| `description` | `string` | N | 간단 소개 |
+| `visibility` | `string` | N | `public` 또는 `private` |
+
+업로드 시 PDF 첫 페이지를 PNG로 렌더링해 MinIO에 저장합니다. 포트폴리오 목록 조회의 `thumbnailUrl`은 이 첫 페이지 이미지 다운로드 URL입니다.
+
+`201 Created`
+
+```json
+{
+  "id": "30000000-0000-4000-8000-000000000010",
+  "title": "UX/UI Designer Portfolio",
+  "description": "UX/UI 중심 포트폴리오입니다.",
+  "visibility": "public",
+  "pageCount": 8,
+  "pdf": {
+    "originalFilename": "portfolio.pdf",
+    "contentType": "application/pdf",
+    "size": 1048576
+  },
+  "likeCount": 0,
+  "commentCount": 0,
+  "createdAt": "2026-04-28T12:00:00",
+  "updatedAt": "2026-04-28T12:00:00"
 }
 ```
 
 ### 포트폴리오 목록 조회
 
 `GET /api/v1/portfolios?page&size&role&skill&name&keyword`
+
+인증은 선택입니다.
+
+- 토큰이 있으면 요청자 본인 포트폴리오는 제외하고, 다른 사용자의 공개 포트폴리오만 반환합니다.
+- 토큰이 없으면 공개 포트폴리오만 반환합니다.
+- 포트폴리오는 `visibility=PUBLIC`이고 `status=READY` 또는 `status=PUBLISHED`인 경우 목록에 포함됩니다.
 
 | 이름 | 타입 | 필수 | 설명 |
 | --- | --- | --- | --- |
@@ -187,7 +235,7 @@
       "portfolioId": "30000000-0000-4000-8000-000000000010",
       "title": "UX/UI Designer Portfolio",
       "ownerName": "iamnot_tyler_1999",
-      "thumbnailUrl": "https://cdn.example.com/portfolios/30000000-0000-4000-8000-000000000010/thumb.png",
+      "thumbnailUrl": "https://minio.example.com/hwayoung-portfolios/portfolios/00000000-0000-4000-8000-000000000001/30000000-0000-4000-8000-000000000010/first-page.png?X-Amz-Expires=600",
       "roles": ["UX/UI Design"],
       "skills": ["Figma", "Illustrator", "Photoshop"],
       "saved": false
@@ -204,25 +252,27 @@
 
 `GET /api/v1/portfolios/{portfolioId}`
 
+인증은 선택입니다. `PUBLIC` 포트폴리오는 비로그인 사용자도 조회할 수 있고, `PRIVATE` 포트폴리오는 작성자만 조회할 수 있습니다.
+
 `200 OK`
 
 ```json
 {
-  "portfolioId": "30000000-0000-4000-8000-000000000010",
+  "id": "30000000-0000-4000-8000-000000000010",
+  "ownerId": "00000000-0000-4000-8000-000000000001",
   "title": "UX/UI Designer Portfolio",
   "description": "UX/UI 중심 포트폴리오입니다.",
-  "visibility": "PUBLIC",
-  "status": "PUBLISHED",
-  "owner": {
-    "userId": "00000000-0000-4000-8000-000000000001",
-    "name": "iamnot_tyler_1999",
-    "profileImageUrl": "https://cdn.example.com/users/00000000-0000-4000-8000-000000000001.png"
-  },
-  "thumbnailUrl": "https://cdn.example.com/portfolios/30000000-0000-4000-8000-000000000010/thumb.png",
+  "visibility": "public",
   "pageCount": 8,
-  "roles": ["UX/UI Design"],
-  "skills": ["Figma", "Illustrator", "Photoshop"],
-  "summary": "Figma 기반 UX/UI 프로젝트 경험을 중심으로 구성된 포트폴리오입니다."
+  "pdf": {
+    "originalFilename": "portfolio.pdf",
+    "contentType": "application/pdf",
+    "size": 1048576
+  },
+  "likeCount": 0,
+  "commentCount": 0,
+  "createdAt": "2026-04-28T12:00:00",
+  "updatedAt": "2026-04-28T12:00:00"
 }
 ```
 
@@ -258,6 +308,8 @@
 ### 포트폴리오 삭제
 
 `DELETE /api/v1/portfolios/{portfolioId}`
+
+작성자만 삭제할 수 있습니다. 삭제 시 DB 포트폴리오 데이터와 MinIO 원본 PDF, 첫 페이지 썸네일 object가 함께 삭제됩니다.
 
 `204 No Content`
 
@@ -415,6 +467,8 @@ PDF 텍스트, 작성자 메모, 요약 chunk를 다시 생성하고 embedding�
 ```
 
 ## Chatbot
+
+페이지별 참고 텍스트(`PortfolioContext`)는 챗봇/RAG 답변 근거 데이터이므로 API 문서에서는 챗봇 기능 도메인에 포함합니다.
 
 ### 챗봇 세션 생성
 
@@ -655,7 +709,7 @@ PDF 텍스트, 작성자 메모, 요약 chunk를 다시 생성하고 embedding�
       "portfolioId": "30000000-0000-4000-8000-000000000010",
       "title": "UX/UI Designer Portfolio",
       "ownerName": "iamnot_tyler_1999",
-      "thumbnailUrl": "https://cdn.example.com/portfolios/30000000-0000-4000-8000-000000000010/thumb.png",
+      "thumbnailUrl": "https://minio.example.com/hwayoung-portfolios/portfolios/00000000-0000-4000-8000-000000000001/30000000-0000-4000-8000-000000000010/first-page.png?X-Amz-Expires=600",
       "savedAt": "2026-04-28T12:00:00"
     }
   ],

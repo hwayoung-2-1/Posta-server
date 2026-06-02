@@ -26,6 +26,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -60,6 +62,7 @@ class PortfolioPdfServiceTest {
                 portfolioContextRepository,
                 fileStorageService,
                 new PdfPageCountReader(),
+                new PdfFirstPageThumbnailRenderer(),
                 properties
         );
 
@@ -96,6 +99,11 @@ class PortfolioPdfServiceTest {
         assertThat(response.pdf().size()).isEqualTo(file.getSize());
         assertThat(fileStorageService.uploadedObjectKey)
                 .isEqualTo("portfolios/" + ownerId + "/" + portfolioId + "/original.pdf");
+        assertThat(fileStorageService.uploadedObjectKeys)
+                .containsExactly(
+                        "portfolios/" + ownerId + "/" + portfolioId + "/first-page.png",
+                        "portfolios/" + ownerId + "/" + portfolioId + "/original.pdf"
+                );
     }
 
     @Test
@@ -189,6 +197,7 @@ class PortfolioPdfServiceTest {
 
     private static class RecordingFileStorageService implements FileStorageService {
         private String uploadedObjectKey;
+        private final List<String> uploadedObjectKeys = new ArrayList<>();
 
         @Override
         public StoredFile storePortfolioFile(UUID portfolioId, MultipartFile file) {
@@ -198,6 +207,7 @@ class PortfolioPdfServiceTest {
         @Override
         public void upload(String objectKey, byte[] bytes, String contentType) {
             this.uploadedObjectKey = objectKey;
+            this.uploadedObjectKeys.add(objectKey);
         }
 
         @Override

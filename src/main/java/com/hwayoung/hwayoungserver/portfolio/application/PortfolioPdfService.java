@@ -38,6 +38,7 @@ public class PortfolioPdfService {
     private final PortfolioContextRepository portfolioContextRepository;
     private final FileStorageService fileStorageService;
     private final PdfPageCountReader pdfPageCountReader;
+    private final PdfFirstPageThumbnailRenderer pdfFirstPageThumbnailRenderer;
     private final PortfolioPdfProperties properties;
 
     @Transactional
@@ -51,28 +52,41 @@ public class PortfolioPdfService {
         validateUploadRequest(file, title, visibilityValue);
         byte[] bytes = readBytes(file);
         int pageCount = pdfPageCountReader.countPages(bytes);
+        byte[] thumbnailBytes = pdfFirstPageThumbnailRenderer.render(bytes);
         String originalFilename = safeOriginalFilename(file);
         String contentType = safeContentType(file);
         PortfolioVisibility visibility = parseVisibility(visibilityValue);
 
         Portfolio portfolio = portfolioRepository.saveAndFlush(new Portfolio(owner, title, description, visibility));
         String objectKey = "portfolios/" + owner.getId() + "/" + portfolio.getId() + "/original.pdf";
+        String thumbnailObjectKey = "portfolios/" + owner.getId() + "/" + portfolio.getId() + "/first-page.png";
         boolean uploaded = false;
+        boolean thumbnailUploaded = false;
 
         try {
+            fileStorageService.upload(thumbnailObjectKey, thumbnailBytes, PdfFirstPageThumbnailRenderer.CONTENT_TYPE);
+            thumbnailUploaded = true;
+            deleteUploadedObjectOnRollback(thumbnailObjectKey);
             fileStorageService.upload(objectKey, bytes, contentType);
             uploaded = true;
             deleteUploadedObjectOnRollback(objectKey);
+            portfolio.updateThumbnailObjectKey(thumbnailObjectKey);
             portfolio.updatePdfMetadata(objectKey, originalFilename, contentType, file.getSize(), pageCount);
             return UploadPortfolioPdfResponse.from(portfolioRepository.saveAndFlush(portfolio));
         } catch (ApiException exception) {
             if (uploaded) {
                 fileStorageService.delete(objectKey);
             }
+            if (thumbnailUploaded) {
+                fileStorageService.delete(thumbnailObjectKey);
+            }
             throw exception;
         } catch (RuntimeException exception) {
             if (uploaded) {
                 fileStorageService.delete(objectKey);
+            }
+            if (thumbnailUploaded) {
+                fileStorageService.delete(thumbnailObjectKey);
             }
             throw exception;
         }
@@ -99,9 +113,11 @@ public class PortfolioPdfService {
     public void deletePortfolio(User owner, UUID portfolioId) {
         Portfolio portfolio = getOwnedPortfolio(owner, portfolioId);
         String objectKey = portfolio.getPdfObjectKey();
+        String thumbnailObjectKey = portfolio.getThumbnailObjectKey();
         portfolioContextRepository.deleteByPortfolioId(portfolio.getId());
         portfolioRepository.delete(portfolio);
         deleteObjectAfterCommit(objectKey);
+        deleteObjectAfterCommit(thumbnailObjectKey);
     }
 
     Portfolio getAccessiblePortfolio(User viewer, UUID portfolioId) {

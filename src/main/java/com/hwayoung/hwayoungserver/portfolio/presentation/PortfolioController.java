@@ -34,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -74,8 +75,8 @@ public class PortfolioController {
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String keyword
     ) {
-        User user = currentUserService.getCurrentUser();
-        return ResponseEntity.ok(portfolioService.list(user, page, size, role, skill, name, keyword));
+        Optional<User> user = currentUserService.getCurrentUserOptional();
+        return ResponseEntity.ok(portfolioService.list(user.orElse(null), page, size, role, skill, name, keyword));
     }
 
     @PatchMapping("/portfolios/{portfolioId}")
