@@ -5,11 +5,11 @@ import com.hwayoung.hwayoungserver.portfolio.domain.model.PageOwnerNote;
 import com.hwayoung.hwayoungserver.portfolio.domain.model.Portfolio;
 import com.hwayoung.hwayoungserver.portfolio.domain.model.PortfolioContext;
 import com.hwayoung.hwayoungserver.portfolio.domain.model.PortfolioPage;
-import com.hwayoung.hwayoungserver.portfolio.domain.model.PortfolioSummary;
 import com.hwayoung.hwayoungserver.portfolio.persistence.PageOwnerNoteRepository;
 import com.hwayoung.hwayoungserver.portfolio.persistence.PortfolioContextRepository;
 import com.hwayoung.hwayoungserver.portfolio.persistence.PortfolioPageRepository;
-import com.hwayoung.hwayoungserver.portfolio.persistence.PortfolioSummaryRepository;
+import com.hwayoung.hwayoungserver.taxonomy.domain.model.RoleEntity;
+import com.hwayoung.hwayoungserver.taxonomy.domain.model.SkillEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -22,20 +22,20 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class PortfolioVectorIndexService {
+    private static final String SOURCE_OWNER_PROFILE = "OWNER_PROFILE";
     private static final String SOURCE_PDF_TEXT = "PDF_TEXT";
     private static final String SOURCE_OWNER_NOTE = "OWNER_NOTE";
     private static final String SOURCE_PAGE_CONTEXT = "PAGE_CONTEXT";
-    private static final String SOURCE_SUMMARY = "SUMMARY";
 
     private final ObjectProvider<VectorStore> vectorStoreProvider;
     private final PortfolioPageRepository portfolioPageRepository;
     private final PageOwnerNoteRepository pageOwnerNoteRepository;
     private final PortfolioContextRepository portfolioContextRepository;
-    private final PortfolioSummaryRepository portfolioSummaryRepository;
     private final PortfolioAiProperties properties;
 
     @Transactional
@@ -44,6 +44,15 @@ public class PortfolioVectorIndexService {
         vectorStore.delete(portfolioFilter(portfolio.getId()));
 
         List<Document> documents = new ArrayList<>();
+        addChunks(
+                documents,
+                portfolio,
+                null,
+                SOURCE_OWNER_PROFILE,
+                portfolio.getOwner().getId().toString(),
+                buildOwnerProfileContent(portfolio)
+        );
+
         for (PortfolioPage page : portfolioPageRepository.findByPortfolioOrderByPageNumberAsc(portfolio)) {
             addChunks(
                     documents,
@@ -68,10 +77,6 @@ public class PortfolioVectorIndexService {
             );
         }
 
-        for (PortfolioSummary summary : portfolioSummaryRepository.findByPortfolio(portfolio)) {
-            addChunks(documents, portfolio, null, SOURCE_SUMMARY, summary.getSummaryType().name(), summary.getContent());
-        }
-
         if (!documents.isEmpty()) {
             vectorStore.add(documents);
         }
@@ -91,6 +96,22 @@ public class PortfolioVectorIndexService {
                 SOURCE_OWNER_NOTE,
                 note.getId().toString(),
                 note.getContent()
+        );
+    }
+
+    private String buildOwnerProfileContent(Portfolio portfolio) {
+        return """
+                작성자 이름: %s
+                포트폴리오 제목: %s
+                포트폴리오 설명: %s
+                직군: %s
+                기술: %s
+                """.formatted(
+                portfolio.getOwner().getName(),
+                portfolio.getTitle(),
+                blankToNone(portfolio.getDescription()),
+                names(portfolio.getRoles().stream().map(RoleEntity::getName).toList()),
+                names(portfolio.getSkills().stream().map(SkillEntity::getName).toList())
         );
     }
 
@@ -148,6 +169,17 @@ public class PortfolioVectorIndexService {
                 내용:
                 %s
                 """.formatted(portfolio.getTitle(), pageText, sourceType, content);
+    }
+
+    private String names(List<String> values) {
+        String result = values.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .collect(Collectors.joining(", "));
+        return result.isBlank() ? "없음" : result;
+    }
+
+    private String blankToNone(String value) {
+        return value == null || value.isBlank() ? "없음" : value;
     }
 
     private VectorStore vectorStore() {

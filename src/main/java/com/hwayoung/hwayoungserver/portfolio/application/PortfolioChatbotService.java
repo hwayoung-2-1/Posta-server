@@ -4,16 +4,24 @@ import com.hwayoung.hwayoungserver.common.ApiException;
 import com.hwayoung.hwayoungserver.portfolio.domain.model.ChatMessage;
 import com.hwayoung.hwayoungserver.portfolio.domain.model.ChatMessageSource;
 import com.hwayoung.hwayoungserver.portfolio.domain.model.ChatSession;
+import com.hwayoung.hwayoungserver.portfolio.domain.model.PageOwnerNote;
 import com.hwayoung.hwayoungserver.portfolio.domain.model.Portfolio;
+import com.hwayoung.hwayoungserver.portfolio.domain.model.PortfolioContext;
+import com.hwayoung.hwayoungserver.portfolio.domain.model.PortfolioPage;
 import com.hwayoung.hwayoungserver.portfolio.domain.type.ChatMessageRole;
 import com.hwayoung.hwayoungserver.portfolio.persistence.ChatMessageRepository;
 import com.hwayoung.hwayoungserver.portfolio.persistence.ChatMessageSourceRepository;
 import com.hwayoung.hwayoungserver.portfolio.persistence.ChatSessionRepository;
+import com.hwayoung.hwayoungserver.portfolio.persistence.PageOwnerNoteRepository;
+import com.hwayoung.hwayoungserver.portfolio.persistence.PortfolioContextRepository;
+import com.hwayoung.hwayoungserver.portfolio.persistence.PortfolioPageRepository;
 import com.hwayoung.hwayoungserver.portfolio.presentation.dto.response.ChatMessageItemResponse;
 import com.hwayoung.hwayoungserver.portfolio.presentation.dto.response.ChatMessagesResponse;
 import com.hwayoung.hwayoungserver.portfolio.presentation.dto.response.ChatSourceResponse;
 import com.hwayoung.hwayoungserver.portfolio.presentation.dto.response.CreateChatSessionResponse;
 import com.hwayoung.hwayoungserver.portfolio.presentation.dto.response.SendChatMessageResponse;
+import com.hwayoung.hwayoungserver.taxonomy.domain.model.RoleEntity;
+import com.hwayoung.hwayoungserver.taxonomy.domain.model.SkillEntity;
 import com.hwayoung.hwayoungserver.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.client.ChatClient;
@@ -25,7 +33,9 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -35,6 +45,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PortfolioChatbotService {
     private static final String UNANSWERABLE_MESSAGE = "제공된 포트폴리오 자료만으로는 답변하기 어렵습니다.";
+    private static final String SOURCE_PDF_TEXT = "PDF_TEXT";
+    private static final String SOURCE_OWNER_NOTE = "OWNER_NOTE";
+    private static final String SOURCE_PAGE_CONTEXT = "PAGE_CONTEXT";
 
     private final PortfolioPdfService portfolioPdfService;
     private final ObjectProvider<ChatModel> chatModelProvider;
@@ -42,6 +55,9 @@ public class PortfolioChatbotService {
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final ChatMessageSourceRepository chatMessageSourceRepository;
+    private final PortfolioPageRepository portfolioPageRepository;
+    private final PageOwnerNoteRepository pageOwnerNoteRepository;
+    private final PortfolioContextRepository portfolioContextRepository;
     private final QuestionInsightService questionInsightService;
     private final PortfolioAiProperties properties;
 
@@ -77,7 +93,7 @@ public class PortfolioChatbotService {
         validateCurrentPage(chatSession.getPortfolio(), currentPage);
 
         List<ChatMessage> previousMessages = recentMessages(chatMessageRepository.findByChatSessionOrderByCreatedAtAsc(chatSession));
-        List<Document> documents = retrieveDocuments(chatSession.getPortfolio().getId(), message);
+        List<Document> documents = retrieveDocuments(chatSession.getPortfolio(), message, currentPage);
 
         boolean answerable = !documents.isEmpty();
         String answer = answerable
@@ -134,7 +150,7 @@ public class PortfolioChatbotService {
         return chatSession;
     }
 
-    private List<Document> retrieveDocuments(UUID portfolioId, String message) {
+    private List<Document> retrieveDocuments(Portfolio portfolio, String message, Integer currentPage) {
         VectorStore vectorStore = vectorStoreProvider.getIfAvailable();
         if (vectorStore == null) {
             throw ApiException.conflict(
@@ -146,10 +162,11 @@ public class PortfolioChatbotService {
                 .query(message)
                 .topK(properties.getTopK())
                 .similarityThreshold(properties.getSimilarityThreshold())
-                .filterExpression(PortfolioVectorIndexService.portfolioFilter(portfolioId))
+                .filterExpression(PortfolioVectorIndexService.portfolioFilter(portfolio.getId()))
                 .build();
         List<Document> documents = vectorStore.similaritySearch(request);
-        return documents == null ? List.of() : documents;
+        List<Document> currentPageDocuments = currentPageInputDocuments(portfolio, currentPage);
+        return mergeDocuments(currentPageDocuments, documents == null ? List.of() : documents);
     }
 
     private String askModel(
@@ -178,7 +195,8 @@ public class PortfolioChatbotService {
     private String systemPrompt() {
         return """
                 당신은 포트폴리오 조회자를 돕는 챗봇입니다.
-                반드시 제공된 포트폴리오 문맥만 근거로 답변하세요.
+                반드시 제공된 사용자 입력 데이터와 포트폴리오 문맥만 근거로 답변하세요.
+                사용자 입력 데이터는 작성자가 업로드한 PDF 텍스트, 페이지별 참고 텍스트, 페이지별 작성자 메모, 포트폴리오 제목/설명/직군/기술입니다.
                 문맥에 없는 사실, 경력, 수치, 기술 사용 범위는 추측하지 마세요.
                 답변할 근거가 부족하면 정확히 "%s" 문장으로 시작하세요.
                 사용자가 다른 언어를 요청하지 않으면 한국어로 간결하게 답변하세요.
@@ -208,6 +226,9 @@ public class PortfolioChatbotService {
                 설명: %s
                 현재 사용자가 보고 있는 페이지: %s
 
+                [작성자 정보]
+                %s
+
                 [최근 대화]
                 %s
 
@@ -220,9 +241,22 @@ public class PortfolioChatbotService {
                 chatSession.getPortfolio().getTitle(),
                 nullToEmpty(chatSession.getPortfolio().getDescription()),
                 currentPage == null ? "알 수 없음" : currentPage,
+                ownerInfo(chatSession.getPortfolio()),
                 history.isBlank() ? "없음" : history,
                 context,
                 message
+        );
+    }
+
+    private String ownerInfo(Portfolio portfolio) {
+        return """
+                이름: %s
+                직군: %s
+                기술: %s
+                """.formatted(
+                portfolio.getOwner().getName(),
+                names(portfolio.getRoles().stream().map(RoleEntity::getName).toList()),
+                names(portfolio.getSkills().stream().map(SkillEntity::getName).toList())
         );
     }
 
@@ -237,6 +271,102 @@ public class PortfolioChatbotService {
                 document.getScore() == null ? "알 수 없음" : document.getScore(),
                 document.getText()
         );
+    }
+
+    private List<Document> currentPageInputDocuments(Portfolio portfolio, Integer currentPage) {
+        if (currentPage == null) {
+            return List.of();
+        }
+
+        List<Document> documents = new ArrayList<>();
+        portfolioContextRepository.findByPortfolioIdAndPageNumber(portfolio.getId(), currentPage)
+                .ifPresent(context -> documents.add(pageContextDocument(portfolio, context)));
+
+        portfolioPageRepository.findByPortfolioAndPageNumber(portfolio, currentPage)
+                .ifPresent(page -> {
+                    addDocument(documents, portfolio, page.getPageNumber(), SOURCE_PDF_TEXT, page.getId().toString(), page.getExtractedText());
+                    pageOwnerNoteRepository.findByPortfolioPage(page)
+                            .ifPresent(note -> documents.add(ownerNoteDocument(portfolio, page, note)));
+                });
+        return documents;
+    }
+
+    private Document pageContextDocument(Portfolio portfolio, PortfolioContext context) {
+        return inputDocument(
+                portfolio,
+                context.getPageNumber(),
+                SOURCE_PAGE_CONTEXT,
+                context.getId().toString(),
+                context.getContent()
+        );
+    }
+
+    private Document ownerNoteDocument(Portfolio portfolio, PortfolioPage page, PageOwnerNote note) {
+        return inputDocument(
+                portfolio,
+                page.getPageNumber(),
+                SOURCE_OWNER_NOTE,
+                note.getId().toString(),
+                note.getContent()
+        );
+    }
+
+    private void addDocument(
+            List<Document> documents,
+            Portfolio portfolio,
+            Integer pageNumber,
+            String sourceType,
+            String sourceId,
+            String content
+    ) {
+        if (content == null || content.isBlank()) {
+            return;
+        }
+        documents.add(inputDocument(portfolio, pageNumber, sourceType, sourceId, content));
+    }
+
+    private Document inputDocument(
+            Portfolio portfolio,
+            Integer pageNumber,
+            String sourceType,
+            String sourceId,
+            String content
+    ) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("portfolioId", portfolio.getId().toString());
+        metadata.put("portfolioTitle", portfolio.getTitle());
+        metadata.put("sourceType", sourceType);
+        metadata.put("sourceId", sourceId);
+        if (pageNumber != null) {
+            metadata.put("pageNumber", pageNumber);
+        }
+        String id = "direct-%s-%s".formatted(sourceType, sourceId);
+        String pageText = pageNumber == null ? "전체" : pageNumber.toString();
+        String text = """
+                포트폴리오 제목: %s
+                페이지: %s
+                출처: %s
+                내용:
+                %s
+                """.formatted(portfolio.getTitle(), pageText, sourceType, content);
+        return new Document(id, text, metadata);
+    }
+
+    private List<Document> mergeDocuments(List<Document> prioritizedDocuments, List<Document> vectorDocuments) {
+        Map<String, Document> documentsBySource = new LinkedHashMap<>();
+        prioritizedDocuments.forEach(document -> documentsBySource.putIfAbsent(documentKey(document), document));
+        vectorDocuments.forEach(document -> documentsBySource.putIfAbsent(documentKey(document), document));
+        return new ArrayList<>(documentsBySource.values());
+    }
+
+    private String documentKey(Document document) {
+        Map<String, Object> metadata = document.getMetadata();
+        Object sourceType = metadata.get("sourceType");
+        Object sourceId = metadata.get("sourceId");
+        if (sourceType == null || sourceId == null) {
+            return document.getId();
+        }
+        return sourceType + ":" + sourceId;
     }
 
     private List<ChatMessage> recentMessages(List<ChatMessage> messages) {
@@ -308,5 +438,12 @@ public class PortfolioChatbotService {
 
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private String names(List<String> values) {
+        String result = values.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .collect(Collectors.joining(", "));
+        return result.isBlank() ? "없음" : result;
     }
 }
