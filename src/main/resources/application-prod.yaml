@@ -3,12 +3,19 @@ spring:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME:${DB_USER}}
     password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD}}
+    hikari:
+      max-lifetime: ${SPRING_DATASOURCE_HIKARI_MAX_LIFETIME:600000}
+      keepalive-time: ${SPRING_DATASOURCE_HIKARI_KEEPALIVE_TIME:300000}
+      idle-timeout: ${SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT:300000}
+      validation-timeout: ${SPRING_DATASOURCE_HIKARI_VALIDATION_TIMEOUT:5000}
   data:
     redis:
       host: ${SPRING_REDIS_HOST}
       port: ${SPRING_REDIS_PORT:6379}
   jpa:
     show-sql: false
+server:
+  forward-headers-strategy: framework
 app:
   minio:
     endpoint: ${MINIO_ENDPOINT}
