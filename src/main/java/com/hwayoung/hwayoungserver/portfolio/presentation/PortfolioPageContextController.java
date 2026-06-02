@@ -8,6 +8,7 @@ import com.hwayoung.hwayoungserver.portfolio.presentation.dto.response.PageConte
 import com.hwayoung.hwayoungserver.portfolio.presentation.dto.response.PageContextsResponse;
 import com.hwayoung.hwayoungserver.user.CurrentUserService;
 import com.hwayoung.hwayoungserver.user.User;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Optional;
 import java.util.UUID;
 
+@Tag(name = "챗봇 기능")
 @RestController
 @RequestMapping("/api/v1/portfolios/{portfolioId}/pages")
 @RequiredArgsConstructor

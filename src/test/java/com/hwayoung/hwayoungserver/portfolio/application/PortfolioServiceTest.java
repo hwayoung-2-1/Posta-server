@@ -100,14 +100,15 @@ class PortfolioServiceTest {
     }
 
     @Test
-    @DisplayName("전체 조회는 요청자 포트폴리오와 다른 사용자의 공개 포트폴리오를 함께 반환한다")
-    void listIncludesOwnPortfolioAndOtherPublicPortfolio() {
+    @DisplayName("전체 조회는 요청자 포트폴리오를 제외하고 다른 사용자의 공개 포트폴리오만 반환한다")
+    void listReturnsOnlyOtherPublicPortfolio() {
         Portfolio ownPrivate = portfolio(viewer, "내 비공개 포트폴리오", PortfolioVisibility.PRIVATE, PortfolioStatus.READY);
+        Portfolio ownPublic = portfolio(viewer, "내 공개 포트폴리오", PortfolioVisibility.PUBLIC, PortfolioStatus.READY);
         Portfolio otherPublicReady = portfolio(other, "다른 사용자 공개 포트폴리오", PortfolioVisibility.PUBLIC, PortfolioStatus.READY);
         otherPublicReady.updateThumbnailObjectKey("portfolios/other/public/first-page.png");
         Portfolio otherPrivate = portfolio(other, "다른 사용자 비공개 포트폴리오", PortfolioVisibility.PRIVATE, PortfolioStatus.READY);
         when(portfolioRepository.findByStatusNot(PortfolioStatus.DELETED))
-                .thenReturn(List.of(ownPrivate, otherPublicReady, otherPrivate));
+                .thenReturn(List.of(ownPrivate, ownPublic, otherPublicReady, otherPrivate));
         when(fileStorageService.presignedGetUrl(eq(otherPublicReady.getThumbnailObjectKey()), eq(600)))
                 .thenReturn("https://minio.example.com/first-page.png");
 
@@ -115,7 +116,7 @@ class PortfolioServiceTest {
 
         assertThat(response.content())
                 .extracting(item -> item.title())
-                .containsExactlyInAnyOrder("내 비공개 포트폴리오", "다른 사용자 공개 포트폴리오");
+                .containsExactly("다른 사용자 공개 포트폴리오");
         assertThat(response.content())
                 .filteredOn(item -> item.title().equals("다른 사용자 공개 포트폴리오"))
                 .singleElement()
