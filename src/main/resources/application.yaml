@@ -55,7 +55,7 @@ spring:
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
       chat:
         options:
-          model: ${OLLAMA_CHAT_MODEL:llama3.1}
+          model: ${OLLAMA_CHAT_MODEL:gemma4:e2b}
           temperature: ${AI_CHAT_TEMPERATURE:0.2}
       embedding:
         options:
