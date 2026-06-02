@@ -412,7 +412,7 @@ public class PortfolioService {
 
     private boolean canList(Portfolio portfolio, User viewer) {
         if (viewer != null && portfolio.getOwner().getId().equals(viewer.getId())) {
-            return false;
+            return true;
         }
         return isPubliclyListable(portfolio);
     }

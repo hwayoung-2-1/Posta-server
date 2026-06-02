@@ -100,8 +100,8 @@ class PortfolioServiceTest {
     }
 
     @Test
-    @DisplayName("전체 조회는 요청자 포트폴리오를 제외하고 다른 사용자의 공개 포트폴리오만 반환한다")
-    void listReturnsOnlyOtherPublicPortfolio() {
+    @DisplayName("전체 조회는 요청자 포트폴리오와 다른 사용자의 공개 포트폴리오를 반환한다")
+    void listReturnsOwnPortfoliosAndOtherPublicPortfolio() {
         Portfolio ownPrivate = portfolio(viewer, "내 비공개 포트폴리오", PortfolioVisibility.PRIVATE, PortfolioStatus.READY);
         Portfolio ownPublic = portfolio(viewer, "내 공개 포트폴리오", PortfolioVisibility.PUBLIC, PortfolioStatus.READY);
         Portfolio otherPublicReady = portfolio(other, "다른 사용자 공개 포트폴리오", PortfolioVisibility.PUBLIC, PortfolioStatus.READY);
@@ -116,7 +116,7 @@ class PortfolioServiceTest {
 
         assertThat(response.content())
                 .extracting(item -> item.title())
-                .containsExactly("다른 사용자 공개 포트폴리오");
+                .containsExactly("내 비공개 포트폴리오", "내 공개 포트폴리오", "다른 사용자 공개 포트폴리오");
         assertThat(response.content())
                 .filteredOn(item -> item.title().equals("다른 사용자 공개 포트폴리오"))
                 .singleElement()
