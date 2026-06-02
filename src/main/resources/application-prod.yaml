@@ -17,6 +17,10 @@ spring:
 server:
   forward-headers-strategy: framework
 app:
+  cors:
+    allowed-origin-patterns: ${APP_CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,https://localhost:*}
+  openapi:
+    server-url: ${OPENAPI_SERVER_URL:}
   minio:
     endpoint: ${MINIO_ENDPOINT}
     public-url: ${MINIO_PUBLIC_URL:${MINIO_ENDPOINT}}

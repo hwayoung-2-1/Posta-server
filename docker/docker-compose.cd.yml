@@ -68,6 +68,9 @@ services:
       SPRING_REDIS_HOST: ${SPRING_REDIS_HOST:-redis}
       SPRING_REDIS_PORT: ${SPRING_REDIS_PORT:-6379}
 
+      APP_CORS_ALLOWED_ORIGIN_PATTERNS: "${APP_CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,https://localhost:*,http://postaserver.haeyul.cloud,http://postaserver.haeyul.cloud:*,https://postaserver.haeyul.cloud,https://postaserver.haeyul.cloud:*}"
+      OPENAPI_SERVER_URL: "${OPENAPI_SERVER_URL:-http://postaserver.haeyul.cloud:8080}"
+
       MINIO_ENDPOINT: http://minio:9000
       MINIO_PUBLIC_URL: http://localhost:9000
       MINIO_ACCESS_KEY: minioadmin
