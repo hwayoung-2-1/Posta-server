@@ -46,6 +46,7 @@ app:
     access-key: minioadmin
     secret-key: minioadmin123
     bucket: hwayoung-portfolios-test
+    region: us-east-1
     url-mode: PRESIGNED
     public-read: false
     presigned-expiry-seconds: 3600

@@ -11,7 +11,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
@@ -32,7 +31,6 @@ public class PortfolioSummary extends AuditableEntity {
     @Column(name = "summary_type", nullable = false)
     private SummaryType summaryType;
 
-    @Lob
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 

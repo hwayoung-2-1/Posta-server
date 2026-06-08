@@ -11,6 +11,7 @@ public class MinioProperties {
     private String accessKey;
     private String secretKey;
     private String bucket;
+    private String region = "us-east-1";
     private String urlMode = "PRESIGNED";
     private boolean publicRead = false;
     private int presignedExpirySeconds = 3600;
@@ -53,6 +54,14 @@ public class MinioProperties {
 
     public void setBucket(String bucket) {
         this.bucket = bucket;
+    }
+
+    public String getRegion() {
+        return region == null || region.isBlank() ? "us-east-1" : region;
+    }
+
+    public void setRegion(String region) {
+        this.region = region;
     }
 
     public String getUrlMode() {

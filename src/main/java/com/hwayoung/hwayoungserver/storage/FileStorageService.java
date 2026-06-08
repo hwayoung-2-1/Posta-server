@@ -12,4 +12,8 @@ public interface FileStorageService {
     void delete(String objectKey);
 
     String presignedGetUrl(String objectKey, int expirySeconds);
+
+    String objectUrl(String objectKey);
+
+    String viewUrl(String objectKey, int expirySeconds);
 }
