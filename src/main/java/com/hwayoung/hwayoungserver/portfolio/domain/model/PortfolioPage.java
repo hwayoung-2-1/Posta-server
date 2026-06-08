@@ -11,7 +11,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
@@ -38,7 +37,6 @@ public class PortfolioPage extends AuditableEntity {
     @Column(name = "page_image_url")
     private String pageImageUrl;
 
-    @Lob
     @Column(name = "extracted_text", columnDefinition = "TEXT")
     private String extractedText;
 

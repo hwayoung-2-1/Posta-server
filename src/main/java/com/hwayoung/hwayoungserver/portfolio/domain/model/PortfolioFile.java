@@ -11,7 +11,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
@@ -47,7 +46,6 @@ public class PortfolioFile extends AuditableEntity {
     @Column(name = "processing_status", nullable = false)
     private ProcessingStatus processingStatus;
 
-    @Lob
     @Column(name = "failure_reason", columnDefinition = "TEXT")
     private String failureReason;
 

@@ -16,7 +16,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -41,7 +40,6 @@ public class Portfolio extends AuditableEntity {
     @Column(nullable = false)
     private String title;
 
-    @Lob
     @Column(columnDefinition = "TEXT")
     private String description;
 
