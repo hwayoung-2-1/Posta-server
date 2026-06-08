@@ -49,10 +49,15 @@ import com.hwayoung.hwayoungserver.taxonomy.persistence.SkillRepository;
 import com.hwayoung.hwayoungserver.storage.FileStorageService;
 import com.hwayoung.hwayoungserver.storage.StoredFile;
 import com.hwayoung.hwayoungserver.user.User;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -62,7 +67,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.text.Normalizer;
-import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -155,27 +160,22 @@ public class PortfolioService {
 
     @Transactional(readOnly = true)
     public PortfolioListResponse list(User viewer, int page, int size, String role, String skill, String name, String keyword) {
-        Pageable pageable = pageable(page, size);
-        List<Portfolio> filtered = portfolioRepository.findByStatusNot(PortfolioStatus.DELETED).stream()
-                .filter(portfolio -> canList(portfolio, viewer))
-                .filter(portfolio -> matchesRole(portfolio, role))
-                .filter(portfolio -> matchesSkill(portfolio, skill))
-                .filter(portfolio -> containsIgnoreCase(portfolio.getOwner().getName(), name))
-                .filter(portfolio -> matchesKeyword(portfolio, keyword))
-                .sorted(Comparator.comparing(Portfolio::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
-                .toList();
-
-        int fromIndex = Math.min((int) pageable.getOffset(), filtered.size());
-        int toIndex = Math.min(fromIndex + pageable.getPageSize(), filtered.size());
-        List<PortfolioListItemResponse> content = filtered.subList(fromIndex, toIndex).stream()
+        Pageable pageable = pageable(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<Portfolio> portfolios = portfolioRepository.findAll(listSpecification(viewer, role, skill, name, keyword), pageable);
+        List<PortfolioListItemResponse> content = portfolios.getContent().stream()
                 .map(portfolio -> PortfolioListItemResponse.of(
                         portfolio,
                         thumbnailUrl(portfolio),
                         viewer != null && savedPortfolioRepository.existsByUserAndPortfolio(viewer, portfolio)
                 ))
                 .toList();
-        int totalPages = filtered.isEmpty() ? 0 : (int) Math.ceil((double) filtered.size() / pageable.getPageSize());
-        return new PortfolioListResponse(content, pageable.getPageNumber(), pageable.getPageSize(), filtered.size(), totalPages);
+        return new PortfolioListResponse(
+                content,
+                portfolios.getNumber(),
+                portfolios.getSize(),
+                portfolios.getTotalElements(),
+                portfolios.getTotalPages()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -405,26 +405,63 @@ public class PortfolioService {
     }
 
     private Pageable pageable(int page, int size) {
+        return pageable(page, size, Sort.unsorted());
+    }
+
+    private Pageable pageable(int page, int size, Sort sort) {
         int safePage = Math.max(page, 0);
         int safeSize = size <= 0 ? 12 : Math.min(size, 100);
-        return PageRequest.of(safePage, safeSize);
+        return PageRequest.of(safePage, safeSize, sort);
     }
 
-    private boolean canList(Portfolio portfolio, User viewer) {
-        if (viewer != null && portfolio.getOwner().getId().equals(viewer.getId())) {
-            return true;
-        }
-        return isPubliclyListable(portfolio);
+    private Specification<Portfolio> listSpecification(User viewer, String role, String skill, String name, String keyword) {
+        return (root, query, criteriaBuilder) -> {
+            if (query != null) {
+                query.distinct(true);
+            }
+
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(criteriaBuilder.notEqual(root.get("status"), PortfolioStatus.DELETED));
+
+            Predicate ownPortfolio = viewer == null
+                    ? criteriaBuilder.disjunction()
+                    : criteriaBuilder.equal(root.get("owner").get("id"), viewer.getId());
+            Predicate publiclyListable = criteriaBuilder.and(
+                    criteriaBuilder.equal(root.get("visibility"), PortfolioVisibility.PUBLIC),
+                    root.get("status").in(List.of(PortfolioStatus.READY, PortfolioStatus.PUBLISHED))
+            );
+            predicates.add(criteriaBuilder.or(ownPortfolio, publiclyListable));
+
+            if (StringUtils.hasText(role)) {
+                predicates.add(likeIgnoreCase(criteriaBuilder, root.join("roles").get("name"), role));
+            }
+            if (StringUtils.hasText(skill)) {
+                predicates.add(likeIgnoreCase(criteriaBuilder, root.join("skills").get("name"), skill));
+            }
+            if (StringUtils.hasText(name)) {
+                predicates.add(likeIgnoreCase(criteriaBuilder, root.get("owner").get("name"), name));
+            }
+            if (StringUtils.hasText(keyword)) {
+                predicates.add(criteriaBuilder.or(
+                        likeIgnoreCase(criteriaBuilder, root.get("title"), keyword),
+                        likeIgnoreCase(criteriaBuilder, root.get("description"), keyword)
+                ));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(Predicate[]::new));
+        };
     }
 
-    private boolean isPubliclyListable(Portfolio portfolio) {
-        return portfolio.getVisibility() == PortfolioVisibility.PUBLIC
-                && (portfolio.getStatus() == PortfolioStatus.READY || portfolio.getStatus() == PortfolioStatus.PUBLISHED);
+    private Predicate likeIgnoreCase(CriteriaBuilder criteriaBuilder, Expression<String> expression, String keyword) {
+        return criteriaBuilder.like(
+                criteriaBuilder.lower(expression),
+                "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%"
+        );
     }
 
     private String thumbnailUrl(Portfolio portfolio) {
         if (StringUtils.hasText(portfolio.getThumbnailObjectKey())) {
-            return fileStorageService.presignedGetUrl(
+            return fileStorageService.viewUrl(
                     portfolio.getThumbnailObjectKey(),
                     portfolioPdfProperties.getViewUrlExpirySeconds()
             );
@@ -456,37 +493,6 @@ public class PortfolioService {
                 }
             }
         });
-    }
-
-    private boolean matchesRole(Portfolio portfolio, String role) {
-        if (role == null || role.isBlank()) {
-            return true;
-        }
-        return portfolio.getRoles().stream().anyMatch(item -> containsIgnoreCase(item.getName(), role));
-    }
-
-    private boolean matchesSkill(Portfolio portfolio, String skill) {
-        if (skill == null || skill.isBlank()) {
-            return true;
-        }
-        return portfolio.getSkills().stream().anyMatch(item -> containsIgnoreCase(item.getName(), skill));
-    }
-
-    private boolean matchesKeyword(Portfolio portfolio, String keyword) {
-        if (keyword == null || keyword.isBlank()) {
-            return true;
-        }
-        return containsIgnoreCase(portfolio.getTitle(), keyword) || containsIgnoreCase(portfolio.getDescription(), keyword);
-    }
-
-    private boolean containsIgnoreCase(String value, String keyword) {
-        if (keyword == null || keyword.isBlank()) {
-            return true;
-        }
-        if (value == null) {
-            return false;
-        }
-        return value.toLowerCase(Locale.ROOT).contains(keyword.toLowerCase(Locale.ROOT));
     }
 
     private String summaryContent(Portfolio portfolio) {

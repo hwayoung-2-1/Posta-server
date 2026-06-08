@@ -24,9 +24,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -100,16 +105,19 @@ class PortfolioServiceTest {
     }
 
     @Test
-    @DisplayName("전체 조회는 요청자 포트폴리오와 다른 사용자의 공개 포트폴리오를 반환한다")
+    @DisplayName("전체 조회는 페이지 결과를 목록 응답으로 변환한다")
     void listReturnsOwnPortfoliosAndOtherPublicPortfolio() {
         Portfolio ownPrivate = portfolio(viewer, "내 비공개 포트폴리오", PortfolioVisibility.PRIVATE, PortfolioStatus.READY);
         Portfolio ownPublic = portfolio(viewer, "내 공개 포트폴리오", PortfolioVisibility.PUBLIC, PortfolioStatus.READY);
         Portfolio otherPublicReady = portfolio(other, "다른 사용자 공개 포트폴리오", PortfolioVisibility.PUBLIC, PortfolioStatus.READY);
         otherPublicReady.updateThumbnailObjectKey("portfolios/other/public/first-page.png");
-        Portfolio otherPrivate = portfolio(other, "다른 사용자 비공개 포트폴리오", PortfolioVisibility.PRIVATE, PortfolioStatus.READY);
-        when(portfolioRepository.findByStatusNot(PortfolioStatus.DELETED))
-                .thenReturn(List.of(ownPrivate, ownPublic, otherPublicReady, otherPrivate));
-        when(fileStorageService.presignedGetUrl(eq(otherPublicReady.getThumbnailObjectKey()), eq(600)))
+        when(portfolioRepository.findAll(ArgumentMatchers.<Specification<Portfolio>>any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(
+                        List.of(ownPrivate, ownPublic, otherPublicReady),
+                        PageRequest.of(0, 12),
+                        3
+                ));
+        when(fileStorageService.viewUrl(eq(otherPublicReady.getThumbnailObjectKey()), eq(600)))
                 .thenReturn("https://minio.example.com/first-page.png");
 
         PortfolioListResponse response = portfolioService.list(viewer, 0, 12, null, null, null, null);
@@ -161,15 +169,40 @@ class PortfolioServiceTest {
     @DisplayName("비로그인 전체 조회는 다른 사용자의 공개 포트폴리오만 반환한다")
     void anonymousListReturnsOnlyPublicPortfolios() {
         Portfolio publicReady = portfolio(other, "공개 포트폴리오", PortfolioVisibility.PUBLIC, PortfolioStatus.READY);
-        Portfolio privateReady = portfolio(other, "비공개 포트폴리오", PortfolioVisibility.PRIVATE, PortfolioStatus.READY);
-        when(portfolioRepository.findByStatusNot(PortfolioStatus.DELETED))
-                .thenReturn(List.of(publicReady, privateReady));
+        when(portfolioRepository.findAll(ArgumentMatchers.<Specification<Portfolio>>any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(
+                        List.of(publicReady),
+                        PageRequest.of(0, 12),
+                        1
+                ));
 
         PortfolioListResponse response = portfolioService.list(null, 0, 12, null, null, null, null);
 
         assertThat(response.content())
                 .extracting(item -> item.title())
                 .containsExactly("공개 포트폴리오");
+    }
+
+    @Test
+    @DisplayName("전체 조회는 페이지 번호와 크기, 전체 개수와 전체 페이지 수를 반환한다")
+    void listReturnsPaginationMetadata() {
+        Portfolio firstItemOnSecondPage = portfolio(other, "두 번째 페이지 첫 항목", PortfolioVisibility.PUBLIC, PortfolioStatus.READY);
+        when(portfolioRepository.findAll(ArgumentMatchers.<Specification<Portfolio>>any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(
+                        List.of(firstItemOnSecondPage),
+                        PageRequest.of(1, 2),
+                        3
+                ));
+
+        PortfolioListResponse response = portfolioService.list(null, 1, 2, null, null, null, null);
+
+        assertThat(response.content())
+                .extracting(item -> item.title())
+                .containsExactly("두 번째 페이지 첫 항목");
+        assertThat(response.page()).isEqualTo(1);
+        assertThat(response.size()).isEqualTo(2);
+        assertThat(response.totalElements()).isEqualTo(3);
+        assertThat(response.totalPages()).isEqualTo(2);
     }
 
     private Portfolio portfolio(User owner, String title, PortfolioVisibility visibility, PortfolioStatus status) {
