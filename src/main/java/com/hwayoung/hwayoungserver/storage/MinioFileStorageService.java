@@ -91,6 +91,7 @@ public class MinioFileStorageService implements FileStorageService {
         try {
             return MinioClient.builder()
                     .endpoint(properties.getPublicUrl())
+                    .region(properties.getRegion())
                     .credentials(properties.getAccessKey(), properties.getSecretKey())
                     .build()
                     .getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
@@ -98,14 +99,31 @@ public class MinioFileStorageService implements FileStorageService {
                             .bucket(properties.getBucket())
                             .object(objectKey)
                             .expiry(expirySeconds)
+                            .region(properties.getRegion())
                             .build());
         } catch (Exception exception) {
             throw new ApiException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
                     "FILE_STORAGE_ERROR",
-                    "PDF 조회 URL 발급에 실패했습니다."
+                    "파일 조회 URL 발급에 실패했습니다."
             );
         }
+    }
+
+    @Override
+    public String objectUrl(String objectKey) {
+        String encodedObjectName = Arrays.stream(objectKey.split("/"))
+                .map(segment -> UriUtils.encodePathSegment(segment, StandardCharsets.UTF_8))
+                .collect(Collectors.joining("/"));
+        return trimTrailingSlash(properties.getPublicUrl()) + "/" + properties.getBucket() + "/" + encodedObjectName;
+    }
+
+    @Override
+    public String viewUrl(String objectKey, int expirySeconds) {
+        if (PUBLIC_URL_MODE.equalsIgnoreCase(properties.getUrlMode()) || properties.isPublicRead()) {
+            return objectUrl(objectKey);
+        }
+        return presignedGetUrl(objectKey, expirySeconds);
     }
 
     private void ensureBucket() throws Exception {
@@ -132,6 +150,7 @@ public class MinioFileStorageService implements FileStorageService {
 
         return MinioClient.builder()
                 .endpoint(properties.getPublicUrl())
+                .region(properties.getRegion())
                 .credentials(properties.getAccessKey(), properties.getSecretKey())
                 .build()
                 .getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
@@ -139,14 +158,8 @@ public class MinioFileStorageService implements FileStorageService {
                         .bucket(properties.getBucket())
                         .object(objectName)
                         .expiry(properties.getPresignedExpirySeconds())
+                        .region(properties.getRegion())
                         .build());
-    }
-
-    private String objectUrl(String objectName) {
-        String encodedObjectName = Arrays.stream(objectName.split("/"))
-                .map(segment -> UriUtils.encodePathSegment(segment, StandardCharsets.UTF_8))
-                .collect(Collectors.joining("/"));
-        return trimTrailingSlash(properties.getPublicUrl()) + "/" + properties.getBucket() + "/" + encodedObjectName;
     }
 
     private String safeFilename(MultipartFile file) {

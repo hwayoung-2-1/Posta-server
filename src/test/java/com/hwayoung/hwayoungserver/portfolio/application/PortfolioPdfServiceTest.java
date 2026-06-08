@@ -218,5 +218,15 @@ class PortfolioPdfServiceTest {
         public String presignedGetUrl(String objectKey, int expirySeconds) {
             return "https://minio.example.com/" + objectKey;
         }
+
+        @Override
+        public String objectUrl(String objectKey) {
+            return "https://minio.example.com/" + objectKey;
+        }
+
+        @Override
+        public String viewUrl(String objectKey, int expirySeconds) {
+            return "https://minio.example.com/" + objectKey;
+        }
     }
 }

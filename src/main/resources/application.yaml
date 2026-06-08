@@ -91,6 +91,7 @@ app:
     access-key: ${MINIO_ACCESS_KEY}
     secret-key: ${MINIO_SECRET_KEY}
     bucket: ${MINIO_BUCKET:hwayoung-portfolios}
+    region: ${MINIO_REGION:us-east-1}
     url-mode: ${MINIO_URL_MODE:PRESIGNED}
     public-read: ${MINIO_PUBLIC_READ:false}
     presigned-expiry-seconds: ${MINIO_PRESIGNED_EXPIRY_SECONDS:3600}

@@ -76,6 +76,7 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: hwayoung-portfolios
+      MINIO_REGION: us-east-1
 
       AI_CHAT_PROVIDER: ${AI_CHAT_PROVIDER:-none}
       AI_EMBEDDING_PROVIDER: ${AI_EMBEDDING_PROVIDER:-none}
